@@ -190,45 +190,71 @@ class ChartService:
         cusp_sign_list = cusp_signs(houses)
         intercepts = intercepted_signs(houses)
 
-        calculated_asteroids: Dict[str, Dict] = {}
+calculated_asteroids: Dict[str, Dict] = {}
         requested_asteroids = asteroids or []
 
         if HAVE_SWE and requested_asteroids:
             import swisseph as swe_calc
             SE_AST_OFFSET = 10000
 
+            # Map common asteroid numbers to native swe constants where available
+            NATIVE_AST_MAP = {
+                1: getattr(swe_calc, "CERES", 17),
+                2: getattr(swe_calc, "PALLAS", 18),
+                3: getattr(swe_calc, "JUNO", 19),
+                4: getattr(swe_calc, "VESTA", 20),
+                2060: getattr(swe_calc, "CHIRON", 15),
+            }
+
             hour_decimal = dt_utc.hour + dt_utc.minute / 60.0 + dt_utc.second / 3600.0
             tjd_ut = swe_calc.julday(dt_utc.year, dt_utc.month, dt_utc.day, hour_decimal)
 
             for ast_id in requested_asteroids:
-                body_flag = SE_AST_OFFSET + int(ast_id)
+                ast_num = int(ast_id)
                 lon = None
                 retro = False
 
-                try:
-                    res, flag = swe_calc.calc_ut(tjd_ut, body_flag, swe_calc.FLG_SWIEPH | swe_calc.FLG_SPEED)
-                    lon = float(res[0])
-                    retro = bool(res[3] < 0)
-                except swe_calc.Error:
+                # 1. If it's one of the main bodies, use its built-in analytical constant
+                if ast_num in NATIVE_AST_MAP:
+                    body_const = NATIVE_AST_MAP[ast_num]
                     try:
-                        res, flag = swe_calc.calc_ut(tjd_ut, body_flag, swe_calc.FLG_MOSEPH | swe_calc.FLG_SPEED)
+                        res, _ = swe_calc.calc_ut(tjd_ut, body_const, swe_calc.FLG_SWIEPH | swe_calc.FLG_SPEED)
                         lon = float(res[0])
                         retro = bool(res[3] < 0)
-                    except swe_calc.Error:
-                        continue
+                    except Exception:
+                        try:
+                            res, _ = swe_calc.calc_ut(tjd_ut, body_const, swe_calc.FLG_MOSEPH | swe_calc.FLG_SPEED)
+                            lon = float(res[0])
+                            retro = bool(res[3] < 0)
+                        except Exception:
+                            pass
+
+                # 2. Otherwise use the catalog offset (10000 + N)
+                if lon is None:
+                    body_flag = SE_AST_OFFSET + ast_num
+                    try:
+                        res, _ = swe_calc.calc_ut(tjd_ut, body_flag, swe_calc.FLG_SWIEPH | swe_calc.FLG_SPEED)
+                        lon = float(res[0])
+                        retro = bool(res[3] < 0)
+                    except Exception:
+                        try:
+                            res, _ = swe_calc.calc_ut(tjd_ut, body_flag, swe_calc.FLG_MOSEPH | swe_calc.FLG_SPEED)
+                            lon = float(res[0])
+                            retro = bool(res[3] < 0)
+                        except Exception:
+                            pass
 
                 if lon is not None:
                     s, d, _ = deg_to_signpos(lon)
                     h_i = house_index_for_longitude(houses, lon)
-                    calculated_asteroids[str(ast_id)] = {
-                        "id": int(ast_id),
+                    calculated_asteroids[str(ast_num)] = {
+                        "id": ast_num,
                         "lon": lon,
                         "sign": s,
                         "deg": d,
                         "house": h_i,
                         "retro": retro
                     }
-
         return {
             "datetime_utc": dt_utc.isoformat(),
             "location": {"lat": lat, "lon": lon_east, "tz": tz_name},
