@@ -12,7 +12,7 @@ class GeoLocation(BaseModel):
     elevation_m: float = Field(0.0, ge=0, description="Elevation in meters")
 
 
-from typing import List, Optional
+from typing import List, Optional, Any
 from pydantic import BaseModel, Field, validator
 from datetime import datetime
 
@@ -90,6 +90,7 @@ class NatalChartResponse(BaseModel):
     aspects: List[Aspect] = Field(..., description="Major aspects")
     moon_phase: MoonPhase = Field(..., description="Moon phase")
     sect: str = Field(..., description="Chart sect (DAY/NIGHT)")
+    asteroids: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Calculated asteroid positions")
 
 
 class SVGRequest(BaseModel):
