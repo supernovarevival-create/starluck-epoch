@@ -139,17 +139,17 @@ class ChartService:
         hs = house_system.upper()
       if HAVE_SWE:
             house_code = {
-    "PLACIDUS": b'P',
-    "WHOLE": b'W',
-    "EQUAL": b'A',
-    "KOCH": b'K',
-    "REGIOMONTANUS": b'R',
-    "CAMPANUS": b'C',
-    "PORPHYRY": b'O',
-    "ALCABITIUS": b'B',
-    "TOPOCENTRIC": b'T',
-    "MORINUS": b'M',
-    "VEHLOW": b'V',
+                "PLACIDUS": b'P',
+                "WHOLE": b'W',
+                "EQUAL": b'A',
+                "KOCH": b'K',
+                "REGIOMONTANUS": b'R',
+                "CAMPANUS": b'C',
+                "PORPHYRY": b'O',
+                "ALCABITIUS": b'B',
+                "TOPOCENTRIC": b'T',
+                "MORINUS": b'M',
+                "VEHLOW": b'V',
             }.get(hs, b'P')
             asc, mc, houses = swiss_angles_and_houses(dt_utc, loc, house_code)
         else:
