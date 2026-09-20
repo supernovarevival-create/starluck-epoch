@@ -137,7 +137,7 @@ class ChartService:
         lons = planet_longitudes(dt_utc)
 
         hs = house_system.upper()
-      if HAVE_SWE:
+if HAVE_SWE:
             house_code = {
                 "PLACIDUS": b'P',
                 "WHOLE": b'W',
