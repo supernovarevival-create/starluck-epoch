@@ -12,13 +12,24 @@ class GeoLocation(BaseModel):
     elevation_m: float = Field(0.0, ge=0, description="Elevation in meters")
 
 
+from typing import List, Optional
+from pydantic import BaseModel, Field, validator
+from datetime import datetime
+
 class NatalChartRequest(BaseModel):
     """Request model for natal chart calculation."""
     datetime_local: str = Field(..., description="Birth date/time in ISO format (YYYY-MM-DD HH:MM)")
     timezone: str = Field(..., description="Timezone (e.g., America/New_York)")
     location: GeoLocation
-    house_system: str = Field("WHOLE", pattern="^(WHOLE|EQUAL|PLACIDUS)$", description="House system")
-    
+    # Expanded regex pattern to accept all major Swiss Ephemeris house codes:
+    house_system: str = Field(
+        "PLACIDUS", 
+        pattern="^(PLACIDUS|WHOLE|EQUAL|KOCH|REGIOMONTANUS|CAMPANUS|PORPHYRY|ALCABITIUS|TOPOCENTRIC|MORINUS|VEHLOW)$", 
+        description="House system"
+    )
+    # Optional list of asteroid catalog IDs (e.g. [1, 2, 433, 16])
+    asteroids: Optional[List[int]] = Field(default=[], description="List of asteroid catalog numbers to calculate")
+
     @validator("datetime_local")
     def validate_datetime(cls, v):
         try:
