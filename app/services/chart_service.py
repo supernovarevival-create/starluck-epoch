@@ -137,30 +137,29 @@ class ChartService:
         lons = planet_longitudes(dt_utc)
 
         hs = house_system.upper()
-        if HAVE_SWE:
+      if HAVE_SWE:
             house_code = {
-    "PLACIDUS": b'P',
-    "WHOLE": b'W',
-    "EQUAL": b'A',
-    "KOCH": b'K',
-    "REGIOMONTANUS": b'R',
-    "CAMPANUS": b'C',
-    "PORPHYRY": b'O',
-    "ALCABITIUS": b'B',
-    "TOPOCENTRIC": b'T',
-    "MORINUS": b'M',
-    "VEHLOW": b'V',
-            }.get(hs, 'W')
+                "PLACIDUS": b'P',
+                "WHOLE": b'W',
+                "EQUAL": b'A',
+                "KOCH": b'K',
+                "REGIOMONTANUS": b'R',
+                "CAMPANUS": b'C',
+                "PORPHYRY": b'O',
+                "ALCABITIUS": b'B',
+                "TOPOCENTRIC": b'T',
+                "MORINUS": b'M',
+                "VEHLOW": b'V',
+            }.get(hs, b'P')
             asc, mc, houses = swiss_angles_and_houses(dt_utc, loc, house_code)
-       else:
+        else:
             asc = _ascendant_precise_pyephem(dt_utc, loc)
-            mc  = _mc_from_lst_pyephem(dt_utc, loc)
-            if hs == "WHOLE": 
+            mc = _mc_from_lst_pyephem(dt_utc, loc)
+            if hs == "WHOLE":
                 houses = whole_sign_houses(asc)
-            elif hs == "EQUAL": 
+            elif hs == "EQUAL":
                 houses = equal_houses(asc)
-            else: 
-                # Safe fallback if PyEphem is forced to run
+            else:
                 houses = placidus_houses_placeholder(asc, mc, loc, dt_utc)
 
         day_chart = is_day_chart(dt_utc, loc)
