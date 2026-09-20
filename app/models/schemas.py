@@ -28,7 +28,7 @@ class NatalChartRequest(BaseModel):
         description="House system"
     )
     # Optional list of asteroid catalog IDs (e.g. [1, 2, 433, 16])
-    asteroids: Optional[List[int]] = Field(default=[], description="List of asteroid catalog numbers to calculate")
+    asteroids: Optional[List[int]] = Field(default_factory=list, description="List of asteroid catalog numbers")
 
     @validator("datetime_local")
     def validate_datetime(cls, v):
