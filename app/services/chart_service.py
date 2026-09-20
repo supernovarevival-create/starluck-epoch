@@ -161,7 +161,6 @@ if HAVE_SWE:
                 houses = equal_houses(asc)
             else:
                 houses = placidus_houses_placeholder(asc, mc, loc, dt_utc)
-
         day_chart = is_day_chart(dt_utc, loc)
 
         planets: Dict[str, Dict] = {}
