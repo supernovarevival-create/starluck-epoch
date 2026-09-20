@@ -191,7 +191,7 @@ class ChartService:
         intercepts = intercepted_signs(houses)
 
 calculated_asteroids: Dict[str, Dict] = {}
-        requested_asteroids = asteroids or []
+requested_asteroids = asteroids or []
 
         if HAVE_SWE and requested_asteroids:
             import swisseph as swe_calc
