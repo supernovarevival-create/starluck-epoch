@@ -190,14 +190,13 @@ class ChartService:
         cusp_sign_list = cusp_signs(houses)
         intercepts = intercepted_signs(houses)
 
-calculated_asteroids: Dict[str, Dict] = {}
-requested_asteroids = asteroids or []
+        calculated_asteroids: Dict[str, Dict] = {}
+        requested_asteroids = asteroids or []
 
         if HAVE_SWE and requested_asteroids:
             import swisseph as swe_calc
             SE_AST_OFFSET = 10000
 
-            # Map common asteroid numbers to native swe constants where available
             NATIVE_AST_MAP = {
                 1: getattr(swe_calc, "CERES", 17),
                 2: getattr(swe_calc, "PALLAS", 18),
@@ -214,7 +213,6 @@ requested_asteroids = asteroids or []
                 lon = None
                 retro = False
 
-                # 1. If it's one of the main bodies, use its built-in analytical constant
                 if ast_num in NATIVE_AST_MAP:
                     body_const = NATIVE_AST_MAP[ast_num]
                     try:
@@ -229,7 +227,6 @@ requested_asteroids = asteroids or []
                         except Exception:
                             pass
 
-                # 2. Otherwise use the catalog offset (10000 + N)
                 if lon is None:
                     body_flag = SE_AST_OFFSET + ast_num
                     try:
@@ -255,6 +252,7 @@ requested_asteroids = asteroids or []
                         "house": h_i,
                         "retro": retro
                     }
+
         return {
             "datetime_utc": dt_utc.isoformat(),
             "location": {"lat": lat, "lon": lon_east, "tz": tz_name},
