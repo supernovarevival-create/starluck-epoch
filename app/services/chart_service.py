@@ -139,7 +139,7 @@ class ChartService:
         hs = house_system.upper()
         if HAVE_SWE:
             house_code = {
-               "PLACIDUS": b'P',
+    "PLACIDUS": b'P',
     "WHOLE": b'W',
     "EQUAL": b'A',
     "KOCH": b'K',
@@ -152,13 +152,16 @@ class ChartService:
     "VEHLOW": b'V',
             }.get(hs, 'W')
             asc, mc, houses = swiss_angles_and_houses(dt_utc, loc, house_code)
-        else:
+       else:
             asc = _ascendant_precise_pyephem(dt_utc, loc)
             mc  = _mc_from_lst_pyephem(dt_utc, loc)
-            if hs == "WHOLE": houses = whole_sign_houses(asc)
-            elif hs == "EQUAL": houses = equal_houses(asc)
-            elif hs == "PLACIDUS": houses = placidus_houses_placeholder(asc, mc, loc, dt_utc)
-            else: raise NotImplementedError("House system must be WHOLE|EQUAL|PLACIDUS")
+            if hs == "WHOLE": 
+                houses = whole_sign_houses(asc)
+            elif hs == "EQUAL": 
+                houses = equal_houses(asc)
+            else: 
+                # Safe fallback if PyEphem is forced to run
+                houses = placidus_houses_placeholder(asc, mc, loc, dt_utc)
 
         day_chart = is_day_chart(dt_utc, loc)
 
@@ -186,13 +189,57 @@ class ChartService:
         cusp_sign_list = cusp_signs(houses)
         intercepts = intercepted_signs(houses)
 
-        
+                              # -------------------------------------------------------------
+        # ASTEROID CALCULATIONS
+        # -------------------------------------------------------------
+        calculated_asteroids: Dict[str, Dict] = {}
+        requested_asteroids = getattr(request, "asteroids", []) or []
+
+        if HAVE_SWE and requested_asteroids:
+            import swisseph as swe
+            SE_AST_OFFSET = 10000
+            
+            # Convert dt_utc to Julian Day for Swiss Ephemeris
+            hour_decimal = dt_utc.hour + dt_utc.minute / 60.0 + dt_utc.second / 3600.0
+            tjd_ut = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day, hour_decimal)
+
+            for ast_id in requested_asteroids:
+                body_flag = SE_AST_OFFSET + int(ast_id)
+                lon = None
+                retro = False
+                
+                try:
+                    # 1. High-precision Swiss Ephemeris file lookup
+                    res, flag = swe.calc_ut(tjd_ut, body_flag, swe.FLG_SWIEPH | swe.FLG_SPEED)
+                    lon = float(res[0])
+                    retro = bool(res[3] < 0)
+                except swe.Error:
+                    try:
+                        # 2. Moshier semi-analytical fallback
+                        res, flag = swe.calc_ut(tjd_ut, body_flag, swe.FLG_MOSEPH | swe.FLG_SPEED)
+                        lon = float(res[0])
+                        retro = bool(res[3] < 0)
+                    except swe.Error:
+                        continue
+
+                if lon is not None:
+                    s, d, _ = deg_to_signpos(lon)
+                    h_i = house_index_for_longitude(houses, lon)
+                    calculated_asteroids[str(ast_id)] = {
+                        "id": int(ast_id),
+                        "lon": lon,
+                        "sign": s,
+                        "deg": d,
+                        "house": h_i,
+                        "retro": retro
+                    }
         return {
             "datetime_utc": dt_utc.isoformat(),
             "location": {"lat": lat, "lon": lon_east, "tz": tz_name},
             "angles": {"ASC": asc, "DS": norm360(asc+180), "MC": mc, "IC": norm360(mc+180)},
             "houses": houses, "house_system": hs,
             "planets": planets,
+            "asteroids": calculated_asteroids,
             "aspects": aspects,
             "moon_phase": {"name": phase_name, "angle": phase_angle},
             "sect": "DAY" if day_chart else "NIGHT",
