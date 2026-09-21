@@ -34,7 +34,7 @@ class ChartService:
             SWISS_FLAGS = swe.FLG_MOSEPH | swe.FLG_SPEED
             HAVE_SWE_FILES = False
 
-def compute_natal_chart(self, request: NatalChartRequest) -> NatalChartResponse:
+    def compute_natal_chart(self, request: NatalChartRequest) -> NatalChartResponse:
         """Compute a natal chart from the request."""
         dt_local = datetime.fromisoformat(request.datetime_local)
         if dt_local.tzinfo is None:
@@ -43,12 +43,11 @@ def compute_natal_chart(self, request: NatalChartRequest) -> NatalChartResponse:
         dt_utc = dt_local.astimezone(tz.UTC)
         requested_asteroids = getattr(request, "asteroids", []) or []
         star_scope = getattr(request, "star_scope", "MAJOR_GC") or "MAJOR_GC"
-        
-        # Robust string detection: checks if "COSMIC" appears anywhere in the request string
-        raw_method = str(getattr(request, "star_method", "") or "").upper()
-        if "COSMIC" in raw_method:
+
+        raw_star_method = getattr(request, "star_method", "STELLA_PARTILE") or "STELLA_PARTILE"
+        if "COSMIC" in str(raw_star_method).upper():
             star_method = "COSMIC_ASCENDANCE"
-        elif "NONE" in raw_method:
+        elif "NONE" in str(raw_star_method).upper():
             star_method = "NONE"
         else:
             star_method = "STELLA_PARTILE"
@@ -220,15 +219,14 @@ def compute_natal_chart(self, request: NatalChartRequest) -> NatalChartResponse:
         if star_scope != "NONE" and star_method != "NONE":
             # Catalog of J2000.0 tropical longitudes (epoch 2000-01-01 12:00 TT)
             # Precess eastward along the ecliptic at ~50.291 arcsec/year (0.0139697°/year)
-            # Tuple: (Display Name, J2000 Longitude, Category)
             EXPANDED_STARS = [
-                # 4 Royal Watchers (Watcher Stars of Persia)
+                # 4 Royal Watchers (5.0° orb)
                 ("Aldebaran", 69.7892, "Royal Star"),
                 ("Regulus", 149.8331, "Royal Star"),
                 ("Antares", 249.7644, "Royal Star"),
                 ("Fomalhaut", 333.8694, "Royal Star"),
 
-                # The 15 Medieval Behenian Stars (Hermetic Roots)
+                # The 15 Medieval Behenian Stars (3.0° orb)
                 ("Algol", 56.1703, "Behenian Star"),
                 ("Alcyone (Pleiades)", 59.9989, "Behenian Star"),
                 ("Capella", 81.8578, "Behenian Star"),
@@ -243,7 +241,7 @@ def compute_natal_chart(self, request: NatalChartRequest) -> NatalChartResponse:
                 ("Deneb Algedi", 323.5517, "Behenian Star"),
                 ("Alkaid (Benetnasch)", 177.0133, "Behenian Star"),
 
-                # Major Astrological & Navigational Stars
+                # Major Astrological & Navigational Stars (1.5° orb)
                 ("Sharatan", 33.9714, "Major Star"),
                 ("Hamal", 37.6681, "Major Star"),
                 ("Mira", 31.5283, "Major Star"),
@@ -302,7 +300,6 @@ def compute_natal_chart(self, request: NatalChartRequest) -> NatalChartResponse:
                     continue
                 stars_to_scan.append(item)
 
-            # Targets: Planets, Nodes, Angles, Part of Fortune, & Named Asteroids
             target_bodies = {p_name: p_data["lon"] for p_name, p_data in planets.items()}
             target_bodies["ASC"] = asc
             target_bodies["MC"] = mc
@@ -346,8 +343,6 @@ def compute_natal_chart(self, request: NatalChartRequest) -> NatalChartResponse:
             for display_name, j2000_lon, category in stars_to_scan:
                 s_lon = (j2000_lon + (years_from_j2000 * 0.0139697)) % 360
 
-                # Cosmic Ascendance Tiers: Royal=5.0°, Behenian=3.0°, Major=1.5°
-                # Force boolean check directly
                 if is_cosmic:
                     if category == "Royal Star":
                         max_orb = 5.0
@@ -356,7 +351,7 @@ def compute_natal_chart(self, request: NatalChartRequest) -> NatalChartResponse:
                     else:
                         max_orb = 1.5
                 else:
-                    max_orb = 1.25  # Strict Stella Partile
+                    max_orb = 1.25
 
                 for body_name, b_lon in target_bodies.items():
                     diff = abs(s_lon - b_lon)
@@ -389,9 +384,8 @@ def compute_natal_chart(self, request: NatalChartRequest) -> NatalChartResponse:
                             "orb_formatted": f"{orb_deg}°{orb_min:02d}'"
                         })
 
-            # Sagittarius A* (Galactic Center) & Super Galactic Center
+            # Sagittarius A* (Galactic Center)
             if star_scope in ["MAJOR_GC", "ALL", "MAJOR"]:
-                # GC: ~266.95° (26°57' Sag)
                 gc_lon = (266.9533 + (years_from_j2000 * 0.0139697)) % 360
                 gc_orb = 3.0 if is_cosmic else 1.25
 
