@@ -333,6 +333,96 @@
     return res;
   }
 
+  // --- PURE SVG CHART WHEEL GENERATOR ---
+  function snRenderWheelSVG(title, houses, planets, angles, isUnknown) {
+    if (!houses || houses.length !== 12) return "";
+
+    var size = 360;
+    var center = size / 2;
+    var rOuter = 165;
+    var rZodiac = 135;
+    var rHouses = 100;
+    var rInner = 40;
+
+    // Use Ascendant as 9 o'clock (180 deg in standard screen math), or House 1 cusp
+    var ascDeg = (angles && angles.ASC !== undefined) ? angles.ASC : houses[0];
+
+    // Converts chart ecliptic degrees to SVG coordinates oriented with ASC on the left (180 deg)
+    function degToXY(deg, radius) {
+      // Rotate so Ascendant is at 180° (west/left)
+      var rad = ((180 - (deg - ascDeg)) % 360) * (Math.PI / 180);
+      return {
+        x: (center + radius * Math.cos(rad)).toFixed(2),
+        y: (center - radius * Math.sin(rad)).toFixed(2)
+      };
+    }
+
+    var zGlyphs = ["♈","♉","♊","♋","♌","♍","♎","♏","♐","♑","♒","♓"];
+    var zColors = ["#f87171", "#34d399", "#60a5fa", "#38bdf8", "#fbbf24", "#a3e635", "#818cf8", "#f43f5e", "#fb923c", "#cbd5e1", "#38bdf8", "#a78bfa"];
+    var pGlyphs = {
+      "Sun": "☉", "Moon": "☽", "Mercury": "☿", "Venus": "♀", "Mars": "♂",
+      "Jupiter": "♃", "Saturn": "♄", "Uranus": "♅", "Neptune": "♆", "Pluto": "♇",
+      "TrueNode": "☊", "NorthNode": "☊", "SouthNode": "☋", "Chiron": "⚷"
+    };
+
+    var svg = '<svg viewBox="0 0 ' + size + ' ' + size + '" style="width: 100%; height: auto; background: #0c0d14; border-radius: 50%; border: 1px solid #2d3348; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">';
+    
+    // Concentric Guide Rings
+    svg += '<circle cx="' + center + '" cy="' + center + '" r="' + rOuter + '" fill="none" stroke="#2d3348" stroke-width="1.5" />';
+    svg += '<circle cx="' + center + '" cy="' + center + '" r="' + rZodiac + '" fill="#12131a" stroke="#2d3348" stroke-width="1" />';
+    svg += '<circle cx="' + center + '" cy="' + center + '" r="' + rHouses + '" fill="#181a24" stroke="#2d3348" stroke-width="1" />';
+    svg += '<circle cx="' + center + '" cy="' + center + '" r="' + rInner + '" fill="#0c0d14" stroke="#2d3348" stroke-width="1" />';
+
+    // 12 Zodiac Sign Segments
+    for (var i = 0; i < 12; i++) {
+      var sDeg = i * 30;
+      var p1 = degToXY(sDeg, rOuter);
+      var p2 = degToXY(sDeg, rZodiac);
+      svg += '<line x1="' + p1.x + '" y1="' + p1.y + '" x2="' + p2.x + '" y2="' + p2.y + '" stroke="#232736" stroke-width="1" />';
+      
+      var midPos = degToXY(sDeg + 15, (rOuter + rZodiac) / 2);
+      svg += '<text x="' + midPos.x + '" y="' + (parseFloat(midPos.y) + 5) + '" text-anchor="middle" font-size="14" fill="' + zColors[i] + '">' + zGlyphs[i] + '</text>';
+    }
+
+    // 12 House Cusps & Spoke Lines
+    for (var h = 0; h < 12; h++) {
+      var cusp = houses[h];
+      var hp1 = degToXY(cusp, rZodiac);
+      var hp2 = degToXY(cusp, rInner);
+      var strokeColor = (h === 0 || h === 6) ? "#2dd4bf" : (h === 3 || h === 9 ? "#38bdf8" : "#2d3348");
+      var strokeW = (h === 0 || h === 6 || h === 3 || h === 9) ? "1.8" : "0.7";
+      svg += '<line x1="' + hp1.x + '" y1="' + hp1.y + '" x2="' + hp2.x + '" y2="' + hp2.y + '" stroke="' + strokeColor + '" stroke-width="' + strokeW + '" />';
+
+      // House Number Label
+      var nextCusp = houses[(h + 1) % 12];
+      var diff = (nextCusp - cusp + 360) % 360;
+      var hMidDeg = (cusp + (diff / 2)) % 360;
+      var numPos = degToXY(hMidDeg, (rHouses + rInner) / 2);
+      svg += '<text x="' + numPos.x + '" y="' + (parseFloat(numPos.y) + 4) + '" text-anchor="middle" font-size="9" font-family="monospace" fill="#64748b">' + (h + 1) + '</text>';
+    }
+
+    // Plot Planets
+    if (planets) {
+      var pKeys = Object.keys(planets);
+      pKeys.forEach(function(pName) {
+        var glyph = pGlyphs[pName];
+        if (!glyph) return;
+        var pLon = planets[pName].lon || planets[pName];
+        var pPos = degToXY(pLon, (rZodiac + rHouses) / 2);
+        svg += '<text x="' + pPos.x + '" y="' + (parseFloat(pPos.y) + 5) + '" text-anchor="middle" font-size="13" fill="#f1f5f9" style="cursor:default;" title="' + pName + '">' + glyph + '</text>';
+      });
+    }
+
+    // Ascendant Horizon Marker
+    var ascP1 = degToXY(ascDeg, rOuter + 8);
+    var ascP2 = degToXY(ascDeg, rZodiac);
+    svg += '<line x1="' + ascP1.x + '" y1="' + ascP1.y + '" x2="' + ascP2.x + '" y2="' + ascP2.y + '" stroke="#2dd4bf" stroke-width="2.5" />';
+    svg += '<text x="18" y="' + (center + 4) + '" font-size="10" font-family="sans-serif" font-weight="700" fill="#2dd4bf">ASC</text>';
+
+    svg += '</svg>';
+    return '<div style="font-size: 0.8rem; font-weight:600; color:#2dd4bf; margin-bottom:8px;">' + title + '</div>' + svg;
+  }
+
   // --- ASYNC MAIN CALCULATION FUNCTION ---
   window.snCalculatePlacements = async function() {
     var dateEl = document.getElementById('sn-birthdate-date');
