@@ -570,12 +570,14 @@
       var astBox = document.getElementById('sn-display-asteroids');
       if (astBox) astBox.innerHTML = astHtml || '<span style="color:#64748b;">None calculated</span>';
 
-      // 4. FIXED STARS & COSMIC POINTS
+// 4. FIXED STARS & COSMIC POINTS
       var starsBox = document.getElementById("sn-display-stars");
       var starsHeading = document.getElementById("sn-stars-heading");
-      var starsList = d1.fixed_stars || [];
+      var starsList = (d1 && d1.fixed_stars) ? d1.fixed_stars : [];
 
-      if (starsList.length > 0 && starScope !== "NONE" && starMethod !== "NONE") {
+      console.log("Rendering Fixed Stars Count:", starsList.length);
+
+      if (starsList.length > 0) {
         raw += "\n--- Fixed Stars & Cosmic Points ---\n";
         var starsTxt = "";
         starsList.forEach(function(s) {
