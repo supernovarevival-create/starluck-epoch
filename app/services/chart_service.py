@@ -1,6 +1,9 @@
-"""Chart calculation service."""
+"""Chart calculation service with automated Swiss Ephemeris asteroid downloader."""
 
+import os
+import urllib.request
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, List, Optional
 from dateutil import tz
 
@@ -11,28 +14,62 @@ from app.services.astrology_core import (
 )
 
 
+def ensure_ephe_file(filename: str, ephe_dir: Path) -> bool:
+    """Download an ephemeris file from Astrodienst if not already present."""
+    target_path = ephe_dir / filename
+    if target_path.exists():
+        return True
+
+    ephe_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Check if it's a general asteroid file or placed in a subfolder astN
+    if filename.startswith("se") and filename.endswith(".se1") and filename != "seas_18.se1":
+        # Extract asteroid number for folder structure (ast0, ast1, etc.)
+        try:
+            num = int(filename[2:7])
+            subfolder = f"ast{num // 1000}"
+            sub_dir = ephe_dir / subfolder
+            sub_dir.mkdir(parents=True, exist_ok=True)
+            target_path = sub_dir / filename
+            if target_path.exists():
+                return True
+            url = f"https://www.astro.com/ftp/swisseph/ephe/{subfolder}/{filename}"
+        except Exception:
+            url = f"https://www.astro.com/ftp/swisseph/ephe/{filename}"
+    else:
+        url = f"https://www.astro.com/ftp/swisseph/ephe/{filename}"
+
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=10) as response, open(target_path, "wb") as out_file:
+            out_file.write(response.read())
+        return True
+    except Exception as e:
+        print(f"Notice: Could not download {filename}: {e}")
+        return False
+
+
 class ChartService:
     """Service for chart calculations."""
 
     def __init__(self, swe_path: str = None):
-        """Initialize the chart service with optional Swiss Ephemeris path."""
-        self.swe_path = swe_path
+        """Initialize the chart service with Swiss Ephemeris path."""
+        base_dir = Path(__file__).resolve().parent.parent
+        self.ephe_dir = Path(swe_path) if swe_path else (base_dir / "ephe")
+        self.ephe_dir.mkdir(parents=True, exist_ok=True)
+        self.swe_path = str(self.ephe_dir)
         self._setup_swiss_ephemeris()
 
     def _setup_swiss_ephemeris(self):
-        """Setup Swiss Ephemeris with the provided path."""
+        """Setup Swiss Ephemeris with local directory."""
         global HAVE_SWE_FILES, SWISS_FLAGS
 
-        if HAVE_SWE and self.swe_path:
-            try:
-                swe.set_ephe_path(self.swe_path)
-                test_jd = swe.julday(2024, 1, 1, 12, swe.GREG_CAL)
-                _ = swe.calc_ut(test_jd, swe.SUN, swe.FLG_SWIEPH | swe.FLG_SPEED)
-                SWISS_FLAGS = swe.FLG_SWIEPH | swe.FLG_SPEED
-                HAVE_SWE_FILES = True
-            except Exception:
-                SWISS_FLAGS = swe.FLG_MOSEPH | swe.FLG_SPEED
-                HAVE_SWE_FILES = False
+        if HAVE_SWE:
+            swe.set_ephe_path(self.swe_path)
+            # Ensure the primary asteroid file (Ceres, Pallas, Juno, Vesta, Chiron, Pholus) exists
+            ensure_ephe_file("seas_18.se1", self.ephe_dir)
+            SWISS_FLAGS = swe.FLG_SWIEPH | swe.FLG_SPEED
+            HAVE_SWE_FILES = True
         else:
             SWISS_FLAGS = swe.FLG_MOSEPH | swe.FLG_SPEED
             HAVE_SWE_FILES = False
@@ -44,12 +81,6 @@ class ChartService:
             dt_local = dt_local.replace(tzinfo=tz.gettz(request.timezone))
 
         dt_utc = dt_local.astimezone(tz.UTC)
-
-        loc = CoreGeoLocation(
-            lat=request.location.lat,
-            lon=request.location.lon,
-            elevation_m=request.location.elevation_m
-        )
 
         requested_asteroids = getattr(request, "asteroids", []) or []
 
@@ -100,7 +131,7 @@ class ChartService:
     def _compute_natal_chart(self, dt_local: datetime, lat: float, lon_east: float, tz_name: str,
                              house_system: str = "WHOLE", asteroids: Optional[List[int]] = None,
                              swe_path: str = None) -> Dict:
-        """Compute natal chart - extracted from CLI logic."""
+        """Compute natal chart."""
         from app.services.astrology_core import (
             planet_longitudes, swiss_angles_and_houses, is_day_chart,
             part_of_fortune, moon_phase_info_from_lons, find_aspects,
@@ -118,19 +149,6 @@ class ChartService:
 
         if HAVE_SWE and swe_path:
             swe.set_ephe_path(swe_path)
-            try:
-                _ = swe.calc_ut(swe.julday(dt_utc.year, dt_utc.month, dt_utc.day,
-                                          dt_utc.hour + dt_utc.minute/60 + dt_utc.second/3600.0,
-                                          swe.GREG_CAL), swe.SUN, swe.FLG_SWIEPH | swe.FLG_SPEED)
-                global SWISS_FLAGS, HAVE_SWE_FILES
-                SWISS_FLAGS = swe.FLG_SWIEPH | swe.FLG_SPEED
-                HAVE_SWE_FILES = True
-            except Exception:
-                SWISS_FLAGS = swe.FLG_MOSEPH | swe.FLG_SPEED
-                HAVE_SWE_FILES = False
-        else:
-            SWISS_FLAGS = swe.FLG_MOSEPH | swe.FLG_SPEED
-            HAVE_SWE_FILES = False
 
         lons = planet_longitudes(dt_utc)
         hs = house_system.upper()
@@ -197,12 +215,14 @@ class ChartService:
             import swisseph as swe_calc
             SE_AST_OFFSET = 10000
 
+            # Map common asteroids to built-in bodies in seas_18.se1
             NATIVE_AST_MAP = {
-                1: getattr(swe_calc, "CERES", 17),
-                2: getattr(swe_calc, "PALLAS", 18),
-                3: getattr(swe_calc, "JUNO", 19),
-                4: getattr(swe_calc, "VESTA", 20),
-                2060: getattr(swe_calc, "CHIRON", 15),
+                1: getattr(swe_calc, "SE_CERES", 17),
+                2: getattr(swe_calc, "SE_PALLAS", 18),
+                3: getattr(swe_calc, "SE_JUNO", 19),
+                4: getattr(swe_calc, "SE_VESTA", 20),
+                2060: getattr(swe_calc, "SE_CHIRON", 15),
+                5145: getattr(swe_calc, "SE_PHOLUS", 16),
             }
 
             hour_decimal = dt_utc.hour + dt_utc.minute / 60.0 + dt_utc.second / 3600.0
@@ -214,32 +234,19 @@ class ChartService:
                 retro = False
 
                 if ast_num in NATIVE_AST_MAP:
-                    body_const = NATIVE_AST_MAP[ast_num]
-                    try:
-                        res, _ = swe_calc.calc_ut(tjd_ut, body_const, swe_calc.FLG_SWIEPH | swe_calc.FLG_SPEED)
-                        lon = float(res[0])
-                        retro = bool(res[3] < 0)
-                    except Exception:
-                        try:
-                            res, _ = swe_calc.calc_ut(tjd_ut, body_const, swe_calc.FLG_MOSEPH | swe_calc.FLG_SPEED)
-                            lon = float(res[0])
-                            retro = bool(res[3] < 0)
-                        except Exception:
-                            pass
+                    body_target = NATIVE_AST_MAP[ast_num]
+                else:
+                    body_target = SE_AST_OFFSET + ast_num
+                    # Try to ensure individual asteroid file is present
+                    filename = f"se{ast_num:05d}.se1"
+                    ensure_ephe_file(filename, self.ephe_dir)
 
-                if lon is None:
-                    body_flag = SE_AST_OFFSET + ast_num
-                    try:
-                        res, _ = swe_calc.calc_ut(tjd_ut, body_flag, swe_calc.FLG_SWIEPH | swe_calc.FLG_SPEED)
-                        lon = float(res[0])
-                        retro = bool(res[3] < 0)
-                    except Exception:
-                        try:
-                            res, _ = swe_calc.calc_ut(tjd_ut, body_flag, swe_calc.FLG_MOSEPH | swe_calc.FLG_SPEED)
-                            lon = float(res[0])
-                            retro = bool(res[3] < 0)
-                        except Exception:
-                            pass
+                try:
+                    res, _ = swe_calc.calc_ut(tjd_ut, body_target, swe_calc.FLG_SWIEPH | swe_calc.FLG_SPEED)
+                    lon = float(res[0])
+                    retro = bool(res[3] < 0)
+                except Exception as e:
+                    print(f"Asteroid {ast_num} calculation failed: {e}")
 
                 if lon is not None:
                     s, d, _ = deg_to_signpos(lon)
