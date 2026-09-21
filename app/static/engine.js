@@ -333,11 +333,23 @@
     return res;
   }
 
-  // --- PURE SVG CHART WHEEL GENERATOR ---
-// Converts chart ecliptic degrees to standard SVG astrological wheel coordinates
-    // (Ascendant locked at 9 o'clock / 180°, counter-clockwise zodiac flow)
+  // --- SVG CHART WHEEL GENERATOR ---
+  function snRenderWheelSVG(title, houses, planets, angles, isUnknown) {
+    if (!houses || houses.length !== 12) return "";
+
+    var size = 360;
+    var center = size / 2;
+    var rOuter = 165;
+    var rZodiac = 135;
+    var rHouses = 100;
+    var rInner = 40;
+
+    // Default Ascendant to House 1 cusp
+    var ascDeg = (angles && angles.ASC !== undefined) ? angles.ASC : houses[0];
+
+    // Correct screen coordinates:
+    // Ascendant at 9 o'clock (180°), Houses 1, 2, 3 curve counter-clockwise through the bottom
     function degToXY(deg, radius) {
-      // Invert angle progression so ecliptic advances counter-clockwise on screen
       var angleDeg = (180 + (deg - ascDeg)) % 360;
       var rad = angleDeg * (Math.PI / 180);
       return {
@@ -373,7 +385,7 @@
       svg += '<text x="' + midPos.x + '" y="' + (parseFloat(midPos.y) + 5) + '" text-anchor="middle" font-size="14" fill="' + zColors[i] + '">' + zGlyphs[i] + '</text>';
     }
 
-    // 12 House Cusps & Spoke Lines
+    // 12 House Cusps & Division Lines
     for (var h = 0; h < 12; h++) {
       var cusp = houses[h];
       var hp1 = degToXY(cusp, rZodiac);
@@ -382,7 +394,7 @@
       var strokeW = (h === 0 || h === 6 || h === 3 || h === 9) ? "1.8" : "0.7";
       svg += '<line x1="' + hp1.x + '" y1="' + hp1.y + '" x2="' + hp2.x + '" y2="' + hp2.y + '" stroke="' + strokeColor + '" stroke-width="' + strokeW + '" />';
 
-      // House Number Label
+      // House Number Labels
       var nextCusp = houses[(h + 1) % 12];
       var diff = (nextCusp - cusp + 360) % 360;
       var hMidDeg = (cusp + (diff / 2)) % 360;
@@ -390,29 +402,28 @@
       svg += '<text x="' + numPos.x + '" y="' + (parseFloat(numPos.y) + 4) + '" text-anchor="middle" font-size="9" font-family="monospace" fill="#64748b">' + (h + 1) + '</text>';
     }
 
-    // Plot Planets
+    // Plot Planetary Glyphs
     if (planets) {
       var pKeys = Object.keys(planets);
       pKeys.forEach(function(pName) {
         var glyph = pGlyphs[pName];
         if (!glyph) return;
-        var pLon = planets[pName].lon || planets[pName];
+        var pLon = (planets[pName] && planets[pName].lon !== undefined) ? planets[pName].lon : planets[pName];
         var pPos = degToXY(pLon, (rZodiac + rHouses) / 2);
-        svg += '<text x="' + pPos.x + '" y="' + (parseFloat(pPos.y) + 5) + '" text-anchor="middle" font-size="13" fill="#f1f5f9" style="cursor:default;" title="' + pName + '">' + glyph + '</text>';
+        svg += '<text x="' + pPos.x + '" y="' + (parseFloat(pPos.y) + 5) + '" text-anchor="middle" font-size="13" fill="#f1f5f9" style="cursor:default;">' + glyph + '</text>';
       });
     }
 
-    // Ascendant Horizon Marker
+    // Horizontal Ascendant Marker Line
     var ascP1 = degToXY(ascDeg, rOuter + 8);
-    var ascP2 = degToXY(ascDeg, rZodiac);
-    svg += '<line x1="' + ascP1.x + '" y1="' + ascP1.y + '" x2="' + ascP2.x + '" y2="' + ascP2.y + '" stroke="#2dd4bf" stroke-width="2.5" />';
+    svg += '<line x1="' + ascP1.x + '" y1="' + ascP1.y + '" x2="' + degToXY(ascDeg, rZodiac).x + '" y2="' + degToXY(ascDeg, rZodiac).y + '" stroke="#2dd4bf" stroke-width="2.5" />';
     svg += '<text x="18" y="' + (center + 4) + '" font-size="10" font-family="sans-serif" font-weight="700" fill="#2dd4bf">ASC</text>';
 
     svg += '</svg>';
     return '<div style="font-size: 0.8rem; font-weight:600; color:#2dd4bf; margin-bottom:8px;">' + title + '</div>' + svg;
   }
 
-  // --- ASYNC MAIN CALCULATION FUNCTION ---
+  // --- MAIN PLACEMENT ENGINE ---
   window.snCalculatePlacements = async function() {
     var dateEl = document.getElementById('sn-birthdate-date');
     var timeEl = document.getElementById('sn-birthdate-time');
@@ -461,8 +472,8 @@
     var aspStyle = aspEl ? aspEl.value : "DEGREE_STD";
     var ayan = (ayanEl && ayanEl.value) ? parseFloat(ayanEl.value) : 0;
 
-    var starScopeEl = document.getElementById("sn-star-scope") || document.getElementById("Fixed Stars & Cosmic Points");
-    var starMethodEl = document.getElementById("sn-star-method") || document.getElementById("Fixed Stars & Points Calculations Method");
+    var starScopeEl = document.getElementById("sn-star-scope");
+    var starMethodEl = document.getElementById("sn-star-method");
     var starScope = starScopeEl ? starScopeEl.value : "MAJOR_GC";
     var starMethod = starMethodEl ? starMethodEl.value : "STELLA_PARTILE";
 
@@ -574,13 +585,7 @@
           '<div style="color:#94a3b8; font-size:0.8rem; margin-top:2px;">Illumination: ~' + illum + '% | Lunar Cycle Progress: ' + Math.round((pAngle / 360) * 100) + '%</div>';
       }
 
-      var angHtml = "";
-      var plaHtml = "";
-      var astHtml = "";
-      var hseHtml = "";
-      var aspBodies = {};
-
-// --- RENDER DUAL WHEELS ---
+      // --- RENDER DUAL WHEELS ---
       var wheelsWrap = document.getElementById("sn-wheels-wrap");
       var wPrimEl = document.getElementById("sn-wheel-primary");
       var wSecEl = document.getElementById("sn-wheel-secondary");
@@ -599,7 +604,13 @@
       } else if (wheelsWrap) {
         wheelsWrap.style.display = "none";
       }
-      
+
+      var angHtml = "";
+      var plaHtml = "";
+      var astHtml = "";
+      var hseHtml = "";
+      var aspBodies = {};
+
       // 1. ANGLES & NODES
       if (isUnknown && knownRising === "NONE") {
         angHtml = '<div style="color: #94a3b8; font-style: italic;">Birth time unknown: Angles (ASC/MC) omitted; chart calculated using 12:00 PM solar defaults.</div>';
@@ -629,7 +640,7 @@
         aspBodies["Midheaven"] = mcDeg;
       }
 
-      // 2. PLANETARY BODIES & NODES SEPARATION
+      // 2. PLANETARY BODIES & NODES
       if (d1.planets) {
         for (var pName in d1.planets) {
           var pLon = window.snAdjustToZodiac(d1.planets[pName].lon, zod, ayan);
@@ -705,8 +716,6 @@
       var starsHeading = document.getElementById("sn-stars-heading");
       var starsList = (d1 && d1.fixed_stars) ? d1.fixed_stars : [];
 
-      console.log("Rendering Fixed Stars Count:", starsList.length);
-
       if (starsList.length > 0) {
         raw += "\n--- Fixed Stars & Cosmic Points ---\n";
         var starsTxt = "";
@@ -750,7 +759,7 @@
         });
       }
 
-      // 5b. INTERCEPTED SIGNS & DUPLICATED HOUSES
+      // 5b. INTERCEPTED SIGNS
       var interceptWrap = document.getElementById("sn-intercepts-wrap");
       var interceptEl = document.getElementById("sn-display-intercepts");
       var interceptedList = (d1 && d1.intercepted_signs) ? d1.intercepted_signs : [];
