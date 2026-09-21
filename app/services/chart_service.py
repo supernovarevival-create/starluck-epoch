@@ -211,39 +211,37 @@ class ChartService:
 
         if star_scope != "NONE" and star_method != "NONE":
             # Catalog of J2000.0 tropical longitudes (epoch 2000-01-01 12:00 TT)
-            # Precess eastward along the ecliptic at ~50.291 arcsec/year (0.0139697°/year)
-            # Tuple: (Display Name, J2000 Longitude, Category, Cosmic Ascendance Max Orb)
+            # Tuple: (Display Name, J2000 Longitude, Category, Default Cosmic Orb)
             CATALOG_STARS = [
-                # 4 Royal Watchers
+                # 4 Royal Watchers (5.0° orb)
                 ("Aldebaran", 69.7892, "Royal Star", 5.0),
                 ("Regulus", 149.8331, "Royal Star", 5.0),
                 ("Antares", 249.7644, "Royal Star", 5.0),
                 ("Fomalhaut", 333.8694, "Royal Star", 5.0),
 
-                # Major Behenian Stars
+                # Major Behenian Stars (3.0° orb)
                 ("Algol", 56.1703, "Behenian Star", 3.0),
-                ("Alcyone (Pleiades)", 59.9989, "Behenian Star", 2.5),
-                ("Sirius", 104.0894, "Behenian Star", 3.5),
-                ("Procyon", 115.8031, "Behenian Star", 2.5),
+                ("Alcyone (Pleiades)", 59.9989, "Behenian Star", 3.0),
+                ("Sirius", 104.0894, "Behenian Star", 3.0),
+                ("Procyon", 115.8031, "Behenian Star", 3.0),
                 ("Spica", 203.8436, "Behenian Star", 3.0),
                 ("Arcturus", 204.2389, "Behenian Star", 3.0),
                 ("Vega", 285.3183, "Behenian Star", 3.0),
-                ("Altair", 301.7828, "Behenian Star", 2.5),
-                ("Deneb Algedi", 323.5517, "Behenian Star", 2.5),
-                ("Alkaid (Benetnasch)", 177.0133, "Behenian Star", 2.0),
-                ("Alphecca", 222.2858, "Behenian Star", 2.0),
+                ("Altair", 301.7828, "Behenian Star", 3.0),
+                ("Deneb Algedi", 323.5517, "Behenian Star", 3.0),
+                ("Alkaid (Benetnasch)", 177.0133, "Behenian Star", 3.0),
+                ("Alphecca", 222.2858, "Behenian Star", 3.0),
 
-                # Additional Major Stars
-                ("Betelgeuse", 88.7561, "Major Star", 2.5),
-                ("Rigel", 76.8328, "Major Star", 2.5),
-                ("Bellatrix", 80.9547, "Major Star", 2.0),
-                ("Castor", 110.2458, "Major Star", 2.0),
-                ("Pollux", 113.2208, "Major Star", 2.0),
-                ("Deneb", 335.3331, "Major Star", 2.0),
-                ("Markab", 353.4869, "Major Star", 2.0),
+                # Additional Major Stars (1.5° orb)
+                ("Betelgeuse", 88.7561, "Major Star", 1.5),
+                ("Rigel", 76.8328, "Major Star", 1.5),
+                ("Bellatrix", 80.9547, "Major Star", 1.5),
+                ("Castor", 110.2458, "Major Star", 1.5),
+                ("Pollux", 113.2208, "Major Star", 1.5),
+                ("Deneb", 335.3331, "Major Star", 1.5),
+                ("Markab", 353.4869, "Major Star", 1.5),
             ]
 
-            # Decimal years from J2000.0
             years_from_j2000 = (dt_utc.year - 2000) + (dt_utc.timetuple().tm_yday - 1) / 365.25
 
             stars_to_scan = []
@@ -253,28 +251,58 @@ class ChartService:
                     continue
                 stars_to_scan.append(item)
 
-            # Targets: Planets, Nodes, Angles, Part of Fortune, & Asteroids
+            # Targets: Planets, Nodes, Angles, Part of Fortune, & Named Asteroids
             target_bodies = {p_name: p_data["lon"] for p_name, p_data in planets.items()}
             target_bodies["ASC"] = asc
             target_bodies["MC"] = mc
 
-            # Add South Node
             if "TrueNode" in planets:
                 target_bodies["SouthNode"] = (planets["TrueNode"]["lon"] + 180) % 360
             elif "NorthNode" in planets:
                 target_bodies["SouthNode"] = (planets["NorthNode"]["lon"] + 180) % 360
 
-            # Add Part of Fortune
             if "PartOfFortune" in planets:
                 target_bodies["PartOfFortune"] = planets["PartOfFortune"]["lon"]
 
-            # Add Asteroids to fixed star conjunction checks
+            ASTEROID_NAMES = {
+                1: "Ceres", 2: "Pallas", 3: "Juno", 4: "Vesta",
+                5: "Astraea", 6: "Hebe", 7: "Iris", 8: "Flora",
+                9: "Metis", 10: "Hygiea", 16: "Psyche", 18: "Melpomene",
+                19: "Fortuna", 26: "Proserpina", 34: "Circe", 39: "Laetitia",
+                40: "Harmonia", 42: "Isis", 43: "Ariadne", 55: "Pandora",
+                60: "Echo", 76: "Freia", 80: "Sappho", 93: "Minerva",
+                94: "Aurora", 100: "Hekate", 103: "Hera", 105: "Artemis",
+                114: "Kassandra", 128: "Nemesis", 149: "Medusa", 157: "Dejanira",
+                212: "Medea", 258: "Tyche", 399: "Persephone", 433: "Eros",
+                1009: "Sirene", 1036: "Ganymed", 1181: "Lilith", 1221: "Amor",
+                1388: "Aphrodite", 1474: "Beira", 1912: "Anubis", 1923: "Osiris",
+                1924: "Horus", 1930: "Lucifer", 1981: "Midas", 2060: "Chiron",
+                2063: "Bacchus", 2101: "Adonis", 2102: "Tantalus", 3811: "Karma",
+                4227: "Kaali", 4386: "Lust", 4450: "Pan", 5145: "Pholus",
+                7066: "Nessus", 8405: "Asbolus", 10199: "Chariklo", 20000: "Varuna",
+                28978: "Ixion", 33154: "Talent", 50000: "Quaoar", 90377: "Sedna",
+                90482: "Orcus", 99942: "Apophis", 136108: "Haumea", 136199: "Eris",
+                136472: "Makemake"
+            }
+
             for a_id, a_data in calculated_asteroids.items():
-                target_bodies[f"Asteroid_{a_id}"] = a_data["lon"]
+                int_id = int(a_id)
+                ast_display = ASTEROID_NAMES.get(int_id, f"Asteroid {int_id}")
+                target_bodies[ast_display] = a_data["lon"]
 
             for display_name, j2000_lon, category, cosmic_orb in stars_to_scan:
                 s_lon = (j2000_lon + (years_from_j2000 * 0.0139697)) % 360
-                max_orb = 1.25 if star_method == "STELLA_PARTILE" else cosmic_orb
+
+                # Check if method includes COSMIC (5° Royal, 3° Behenian, 1.5° Major)
+                if "COSMIC" in star_method.upper():
+                    if category == "Royal Star":
+                        max_orb = 5.0
+                    elif category == "Behenian Star":
+                        max_orb = 3.0
+                    else:
+                        max_orb = 1.5
+                else:
+                    max_orb = 1.25
 
                 for body_name, b_lon in target_bodies.items():
                     diff = abs(s_lon - b_lon)
@@ -310,7 +338,7 @@ class ChartService:
             # Sagittarius A* (Galactic Center)
             if star_scope in ["MAJOR_GC", "ALL", "MAJOR"]:
                 gc_lon = (266.9533 + (years_from_j2000 * 0.0139697)) % 360
-                gc_max_orb = 1.25 if star_method == "STELLA_PARTILE" else 3.0
+                gc_max_orb = 3.0 if "COSMIC" in star_method.upper() else 1.25
 
                 for body_name, b_lon in target_bodies.items():
                     diff = abs(gc_lon - b_lon)
