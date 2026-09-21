@@ -110,6 +110,7 @@
 
   window.snSelectFromSearch = function() {
     var input = document.getElementById('sn-ast-search');
+    if (!input) return;
     var val = input.value.trim();
     if (!val) return;
 
@@ -159,25 +160,31 @@
   };
 
   window.snToggleAyanamsa = function() {
-    var z = document.getElementById('sn-zodiac').value;
+    var zEl = document.getElementById('sn-zodiac');
     var wrapper = document.getElementById('sn-ayanamsa-wrapper');
-    if (wrapper) wrapper.style.display = (z === 'SIDEREAL') ? 'block' : 'none';
+    if (wrapper && zEl) wrapper.style.display = (zEl.value === 'SIDEREAL') ? 'block' : 'none';
   };
 
   window.snFindCity = async function() {
-    var query = document.getElementById('sn-city').value.trim();
+    var cityEl = document.getElementById('sn-city');
     var status = document.getElementById('sn-coords-display');
     var btn = document.getElementById('sn-city-btn');
+    if (!cityEl) return;
 
+    var query = cityEl.value.trim();
     if (!query) {
-      status.textContent = "Please type a city name.";
-      status.style.color = "#f87171";
+      if (status) {
+        status.textContent = "Please type a city name.";
+        status.style.color = "#f87171";
+      }
       return;
     }
 
-    status.textContent = "Searching...";
-    status.style.color = "#a0a5b5";
-    btn.textContent = "Searching...";
+    if (status) {
+      status.textContent = "Searching...";
+      status.style.color = "#a0a5b5";
+    }
+    if (btn) btn.textContent = "Searching...";
 
     try {
       var cleanQuery = query.split(',')[0].trim();
@@ -192,20 +199,26 @@
         var region = place.admin1 || place.country || "";
         var label = region ? (place.name + ", " + region) : place.name;
 
-        document.getElementById('sn-lat').value = lat;
-        document.getElementById('sn-lon').value = lon;
-        status.textContent = label + " (" + lat + ", " + lon + ")";
-        status.style.color = "#4ade80";
-        btn.textContent = "Find City";
+        var latEl = document.getElementById('sn-lat');
+        var lonEl = document.getElementById('sn-lon');
+        if (latEl) latEl.value = lat;
+        if (lonEl) lonEl.value = lon;
+        if (status) {
+          status.textContent = label + " (" + lat + ", " + lon + ")";
+          status.style.color = "#4ade80";
+        }
+        if (btn) btn.textContent = "Find City";
         return;
       }
     } catch (e) {
       console.warn("Geocoding failed:", e);
     }
 
-    status.textContent = "City not found. Type coordinates directly below.";
-    status.style.color = "#f87171";
-    btn.textContent = "Find City";
+    if (status) {
+      status.textContent = "City not found. Type coordinates directly below.";
+      status.style.color = "#f87171";
+    }
+    if (btn) btn.textContent = "Find City";
   };
 
   window.snAdjustToZodiac = function(deg, zType, ayVal) {
@@ -320,8 +333,8 @@
     return res;
   }
 
-window.snCalculatePlacements = async function() {
-    // 1. SAFELY GRAB DATE & TIME (Supports both split and combined HTML inputs)
+  // --- ASYNC MAIN CALCULATION FUNCTION ---
+  window.snCalculatePlacements = async function() {
     var dateEl = document.getElementById('sn-birthdate-date');
     var timeEl = document.getElementById('sn-birthdate-time');
     var legacyDtEl = document.getElementById('sn-birthdate');
@@ -347,7 +360,6 @@ window.snCalculatePlacements = async function() {
       return;
     }
 
-    // 2. SAFELY GRAB LOCATION & DROPDOWNS (With fallback defaults so it NEVER crashes)
     var latEl = document.getElementById('sn-lat');
     var lonEl = document.getElementById('sn-lon');
     var lat = latEl ? latEl.value : "";
@@ -374,14 +386,20 @@ window.snCalculatePlacements = async function() {
     var starMethodEl = document.getElementById("sn-star-method") || document.getElementById("Fixed Stars & Points Calculations Method");
     var starScope = starScopeEl ? starScopeEl.value : "MAJOR_GC";
     var starMethod = starMethodEl ? starMethodEl.value : "STELLA_PARTILE";
-    }
+
+    var h1Label = snGetHouseSystemName(h1);
+    var h2Label = (h2 !== "NONE" && h2 !== h1) ? snGetHouseSystemName(h2) : null;
+
+    var loading = document.getElementById('sn-loading');
+    var disp = document.getElementById('sn-display-card');
+    var out = document.getElementById('sn-output-card');
 
     var tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
     var formattedDT = bDate + " " + bTime;
 
-    loading.style.display = "block";
-    disp.style.display = "none";
-    out.style.display = "none";
+    if (loading) loading.style.display = "block";
+    if (disp) disp.style.display = "none";
+    if (out) out.style.display = "none";
 
     var asteroidIdList = window.snActive.map(function(a) { return parseInt(a.id); });
 
@@ -419,7 +437,6 @@ window.snCalculatePlacements = async function() {
         }
       }
 
-      // If Rising sign was manually specified with Unknown time, override cusps with derived Whole Sign
       if (isUnknown && knownRising !== "NONE" && signOffsets[knownRising] !== undefined) {
         var forcedBase = signOffsets[knownRising];
         d1.houses = [];
@@ -604,31 +621,40 @@ window.snCalculatePlacements = async function() {
         aspHtml = '<span style="color:#94a3b8;">No major aspects within chosen orbs</span>';
       }
 
-      document.getElementById('sn-display-angles').innerHTML = angHtml;
-      document.getElementById('sn-display-planets').innerHTML = plaHtml;
-      document.getElementById('sn-display-houses').innerHTML = hseHtml;
-      document.getElementById('sn-display-aspects').innerHTML = aspHtml;
+      var angEl = document.getElementById('sn-display-angles');
+      var plaEl = document.getElementById('sn-display-planets');
+      var hseEl = document.getElementById('sn-display-houses');
+      var aspElDisplay = document.getElementById('sn-display-aspects');
+      var pBox = document.getElementById('sn-payload-box');
 
-      document.getElementById('sn-payload-box').value = raw;
-      disp.style.display = "block";
-      out.style.display = "block";
+      if (angEl) angEl.innerHTML = angHtml;
+      if (plaEl) plaEl.innerHTML = plaHtml;
+      if (hseEl) hseEl.innerHTML = hseHtml;
+      if (aspElDisplay) aspElDisplay.innerHTML = aspHtml;
+      if (pBox) pBox.value = raw;
+
+      if (disp) disp.style.display = "block";
+      if (out) out.style.display = "block";
 
     } catch (err) {
       alert("Calculation timed out or instance is waking up. Please wait 10 seconds and try once more.");
       console.error(err);
     } finally {
-      loading.style.display = "none";
+      if (loading) loading.style.display = "none";
     }
   };
 
   window.snCopyPayload = function() {
     var box = document.getElementById('sn-payload-box');
+    if (!box) return;
     box.select();
     box.setSelectionRange(0, 99999);
     navigator.clipboard.writeText(box.value);
     var fb = document.getElementById('sn-copy-feedback');
-    fb.style.display = "block";
-    setTimeout(function() { fb.style.display = "none"; }, 4000);
+    if (fb) {
+      fb.style.display = "block";
+      setTimeout(function() { fb.style.display = "none"; }, 4000);
+    }
   };
 
   function initEngine() {
