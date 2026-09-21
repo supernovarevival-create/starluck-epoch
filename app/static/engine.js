@@ -507,7 +507,64 @@
         });
       }
 
-      // 5. ASPECTS
+      // --- RENDER FIXED STARS & COSMIC POINTS ---
+const starsContainer = document.getElementById('sn-fixed-stars-output') || 
+                       document.getElementById('fixed-stars-container');
+
+if (starsContainer) {
+    const fixedStars = data.fixed_stars || [];
+
+    if (fixedStars.length === 0) {
+        starsContainer.innerHTML = `
+            <div class="sn-no-stars">
+                <em>No major fixed star conjunctions within active orbs.</em>
+            </div>
+        `;
+    } else {
+        let starsHtml = `
+            <div class="sn-section-header">
+                <h3>Fixed Stars & Cosmic Points</h3>
+            </div>
+            <table class="sn-placement-table">
+                <thead>
+                    <tr>
+                        <th>Star / Point</th>
+                        <th>Category</th>
+                        <th>Star Pos</th>
+                        <th>Conjunct Body</th>
+                        <th>Orb</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        fixedStars.forEach(item => {
+            // Category badges: Royal Star, Behenian Star, Cosmic Point
+            const badgeClass = item.category.toLowerCase().includes('royal') ? 'badge-royal' :
+                               item.category.toLowerCase().includes('behenian') ? 'badge-behenian' :
+                               'badge-cosmic';
+
+            starsHtml += `
+                <tr>
+                    <td><strong>${item.star}</strong></td>
+                    <td><span class="sn-badge ${badgeClass}">${item.category}</span></td>
+                    <td>${item.star_deg} ${item.star_sign}</td>
+                    <td><strong>${item.body}</strong> (${item.body_lon ? Math.floor(item.body_lon % 30) + '°' : ''})</td>
+                    <td>${item.orb_formatted || item.orb + '°'}</td>
+                </tr>
+            `;
+        });
+
+        starsHtml += `
+                </tbody>
+            </table>
+        `;
+
+        starsContainer.innerHTML = starsHtml;
+    }
+}
+
+      // 6. ASPECTS
       var asps = snFindAspects(aspBodies, aspStyle);
       var aspHtml = "";
       if (asps.length > 0) {
