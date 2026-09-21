@@ -218,6 +218,12 @@
 
   var zSigns = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
 
+  var signOffsets = {
+    "Aries": 0, "Taurus": 30, "Gemini": 60, "Cancer": 90,
+    "Leo": 120, "Virgo": 150, "Libra": 180, "Scorpio": 210,
+    "Sagittarius": 240, "Capricorn": 270, "Aquarius": 300, "Pisces": 330
+  };
+
   window.snFormatZodiac = function(degVal) {
     var d = (Number(degVal) % 360 + 360) % 360;
     var sIdx = Math.floor(d / 30);
@@ -315,7 +321,11 @@
   }
 
   window.snCalculatePlacements = async function() {
-    var bInput = document.getElementById('sn-birthdate').value;
+    var bDate = document.getElementById('sn-birthdate-date').value;
+    var bTime = document.getElementById('sn-birthdate-time').value || "12:00";
+    var isUnknown = document.getElementById('sn-unknown-time') ? document.getElementById('sn-unknown-time').checked : false;
+    var knownRising = document.getElementById('sn-known-rising') ? document.getElementById('sn-known-rising').value : "NONE";
+
     var lat = document.getElementById('sn-lat').value;
     var lon = document.getElementById('sn-lon').value;
     var h1 = document.getElementById('sn-houses-1').value;
@@ -324,8 +334,8 @@
     var aspStyle = document.getElementById('sn-aspect-style').value;
     var ayan = parseFloat(document.getElementById('sn-ayanamsa').value) || 0;
 
-    var starScopeEl = document.getElementById("sn-star-scope") || document.getElementById("Fixed Stars & Cosmic Points");
-    var starMethodEl = document.getElementById("sn-star-method") || document.getElementById("Fixed Stars & Points Calculations Method");
+    var starScopeEl = document.getElementById("sn-star-scope");
+    var starMethodEl = document.getElementById("sn-star-method");
     var starScope = starScopeEl ? starScopeEl.value : "MAJOR_GC";
     var starMethod = starMethodEl ? starMethodEl.value : "STELLA_PARTILE";
 
@@ -336,8 +346,8 @@
     var disp = document.getElementById('sn-display-card');
     var out = document.getElementById('sn-output-card');
 
-    if (!bInput) {
-      alert("Please enter a birth date and time.");
+    if (!bDate) {
+      alert("Please enter a birth date.");
       return;
     }
     if (!lat || !lon) {
@@ -346,7 +356,7 @@
     }
 
     var tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-    var formattedDT = bInput.replace('T', ' ');
+    var formattedDT = bDate + " " + bTime;
 
     loading.style.display = "block";
     disp.style.display = "none";
@@ -388,10 +398,23 @@
         }
       }
 
+      // If Rising sign was manually specified with Unknown time, override cusps with derived Whole Sign
+      if (isUnknown && knownRising !== "NONE" && signOffsets[knownRising] !== undefined) {
+        var forcedBase = signOffsets[knownRising];
+        d1.houses = [];
+        for (var hIdx = 0; hIdx < 12; hIdx++) {
+          d1.houses.push((forcedBase + (hIdx * 30)) % 360);
+        }
+        h1Label = "Whole Sign (" + knownRising + " Rising)";
+      }
+
       var raw = "";
       raw += "Zodiac System:    " + zod + (zod === 'SIDEREAL' ? " (Ayanamsa " + ayan + ")" : "") + "\n";
       raw += "Primary System:   " + h1Label + "\n";
       if (h2Label) raw += "Secondary System: " + h2Label + "\n";
+      if (isUnknown) {
+        raw += "Time Status:      UNKNOWN" + (knownRising !== "NONE" ? " (" + knownRising + " Rising Specified)\n" : " (12:00 PM Solar Default)\n");
+      }
       raw += "----------------------------------------------------------------------\n";
       raw += snPad("Body / Point", 16) + snPad("Longitude", 18) + snPad("H (" + h1Label.substr(0,4) + ")", 12);
       if (h2Label) raw += snPad("H (" + h2Label.substr(0,4) + ")", 12);
@@ -403,8 +426,16 @@
       var hseHtml = "";
       var aspBodies = {};
 
-      // 1. ALL FOUR ANGLES
-      if (d1.angles) {
+      // 1. ANGLES & NODES
+      if (isUnknown && knownRising === "NONE") {
+        angHtml = '<div style="color: #94a3b8; font-style: italic;">Birth time unknown: Angles (ASC/MC) omitted; chart calculated using 12:00 PM solar defaults.</div>';
+      } else if (isUnknown && knownRising !== "NONE") {
+        var baseAsc = signOffsets[knownRising];
+        angHtml += '<div><strong>Ascendant (ASC):</strong> 0°00\' ' + knownRising + ' <span style="color:#2dd4bf; font-size:0.75rem;">(Derived Whole Sign)</span></div>';
+        angHtml += '<div><strong>Descendant (DS):</strong> 0°00\' ' + zSigns[(zSigns.indexOf(knownRising) + 6) % 12] + '</div>';
+        raw += snPad("Ascendant", 16) + snPad("0°00' " + knownRising, 18) + snPad("House 1", 12) + "\n";
+        aspBodies["Ascendant"] = baseAsc;
+      } else if (d1.angles) {
         var ascDeg = window.snAdjustToZodiac(d1.angles.ASC, zod, ayan);
         var dsDeg = window.snAdjustToZodiac(d1.angles.DS, zod, ayan);
         var mcDeg = window.snAdjustToZodiac(d1.angles.MC, zod, ayan);
@@ -524,16 +555,18 @@
         }
       }
 
-      // 5. STACKED HOUSE CUSPS (PRIMARY THEN SECONDARY)
-      if (Array.isArray(d1.houses)) {
+      // 5. STACKED HOUSE CUSPS
+      if (Array.isArray(d1.houses) && (!isUnknown || knownRising !== "NONE")) {
         hseHtml += '<div style="font-size:0.85rem; text-transform:uppercase; color:#2dd4bf; font-weight:700; margin-bottom:8px;">House Cusps (' + h1Label + ')</div>';
         d1.houses.forEach(function(hDeg, idx) {
           var sh1 = window.snAdjustToZodiac(hDeg, zod, ayan);
           hseHtml += '<div>House ' + (idx + 1) + ': ' + window.snFormatZodiac(sh1) + '</div>';
         });
+      } else if (isUnknown) {
+        hseHtml = '<div style="color:#94a3b8; font-style:italic;">House cusps not defined for unknown time without specified rising sign.</div>';
       }
 
-      if (d2Cusps && Array.isArray(d2Cusps)) {
+      if (d2Cusps && Array.isArray(d2Cusps) && (!isUnknown || knownRising !== "NONE")) {
         hseHtml += '<div style="font-size:0.85rem; text-transform:uppercase; color:#2dd4bf; font-weight:700; margin-top:20px; margin-bottom:8px;">House Cusps (' + h2Label + ')</div>';
         d2Cusps.forEach(function(hDeg, idx) {
           var sh2 = window.snAdjustToZodiac(hDeg, zod, ayan);
