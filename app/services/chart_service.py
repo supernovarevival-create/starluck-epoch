@@ -53,8 +53,9 @@ class ChartService:
     """Service for chart calculations."""
 
     def __init__(self, swe_path: str = None):
-        """Initialize chart service and ensure ephemeris path is mounted."""
-        self.swe_path = str(EPHE_DIR)
+        # Resolve to root directory where ephemeris_data was downloaded
+        self.ephe_dir = root_dir / "ephemeris_data"
+        self.swe_path = str(self.ephe_dir)
         self._setup_swiss_ephemeris()
 
     def _setup_swiss_ephemeris(self):
@@ -62,10 +63,7 @@ class ChartService:
         global HAVE_SWE_FILES, SWISS_FLAGS
 
         if HAVE_SWE:
-            # Tell Swiss Ephemeris to use /tmp/ephe
             swe.set_ephe_path(self.swe_path)
-            # Pre-fetch the master asteroid file for 1-4, Chiron, Pholus
-            download_ephe_file("seas_18.se1")
             SWISS_FLAGS = swe.FLG_SWIEPH | swe.FLG_SPEED
             HAVE_SWE_FILES = True
         else:
@@ -145,8 +143,8 @@ class ChartService:
         dt_utc = dt_local.astimezone(tz.UTC)
         loc = GeoLocation(lat=lat, lon=lon_east)
 
-        if HAVE_SWE:
-            swe.set_ephe_path(str(EPHE_DIR))
+        if HAVE_SWE and swe_path:
+            swe.set_ephe_path(swe_path)
 
         lons = planet_longitudes(dt_utc)
         hs = house_system.upper()
@@ -215,7 +213,8 @@ class ChartService:
         if HAVE_SWE and requested_asteroids:
             import swisseph as swe_calc
 
-            # Native constants in pyswisseph
+            AST_OFFSET = getattr(swe_calc, "AST_OFFSET", 10000)
+
             NATIVE_MAP = {
                 1: getattr(swe_calc, "CERES", 17),
                 2: getattr(swe_calc, "PALLAS", 18),
@@ -225,8 +224,6 @@ class ChartService:
                 5145: getattr(swe_calc, "PHOLUS", 16),
             }
 
-            AST_OFFSET = getattr(swe_calc, "AST_OFFSET", 10000)
-
             hour_decimal = dt_utc.hour + dt_utc.minute / 60.0 + dt_utc.second / 3600.0
             tjd_ut = swe_calc.julday(dt_utc.year, dt_utc.month, dt_utc.day, hour_decimal)
 
@@ -235,29 +232,20 @@ class ChartService:
                 lon = None
                 retro = False
 
-                # A. Try built-in body ID first if it's Ceres, Pallas, Juno, Vesta, Chiron, Pholus
                 if ast_num in NATIVE_MAP:
-                    body_id = NATIVE_MAP[ast_num]
                     try:
-                        res, _ = swe_calc.calc_ut(tjd_ut, body_id, swe_calc.FLG_SWIEPH | swe_calc.FLG_SPEED)
+                        res, _ = swe_calc.calc_ut(tjd_ut, NATIVE_MAP[ast_num], swe_calc.FLG_SWIEPH | swe_calc.FLG_SPEED)
                         lon = float(res[0])
                         retro = bool(res[3] < 0)
                     except Exception as e:
-                        print(f"SwissEph native calc failed for body {ast_num}: {e}")
-
-                # B. Otherwise (or as fallback), use AST_OFFSET + ID
-                if lon is None:
-                    # Download the individual file (e.g. se00128.se1 for Nemesis)
-                    filename = f"se{ast_num:05d}.se1"
-                    download_ephe_file(filename)
-
-                    body_id = AST_OFFSET + ast_num
+                        print(f"Asteroid {ast_num} calc error: {e}")
+                else:
                     try:
-                        res, _ = swe_calc.calc_ut(tjd_ut, body_id, swe_calc.FLG_SWIEPH | swe_calc.FLG_SPEED)
+                        res, _ = swe_calc.calc_ut(tjd_ut, AST_OFFSET + ast_num, swe_calc.FLG_SWIEPH | swe_calc.FLG_SPEED)
                         lon = float(res[0])
                         retro = bool(res[3] < 0)
                     except Exception as e:
-                        print(f"SwissEph offset calc failed for asteroid {ast_num}: {e}")
+                        print(f"Asteroid offset {ast_num} error: {e}")
 
                 if lon is not None:
                     s, d, _ = deg_to_signpos(lon)
@@ -270,19 +258,3 @@ class ChartService:
                         "house": h_i,
                         "retro": retro
                     }
-
-        return {
-            "datetime_utc": dt_utc.isoformat(),
-            "location": {"lat": lat, "lon": lon_east, "tz": tz_name},
-            "angles": {"ASC": asc, "DS": norm360(asc + 180), "MC": mc, "IC": norm360(mc + 180)},
-            "houses": houses,
-            "house_system": hs,
-            "planets": planets,
-            "asteroids": calculated_asteroids,
-            "aspects": aspects,
-            "moon_phase": {"name": phase_name, "angle": phase_angle},
-            "sect": "DAY" if day_chart else "NIGHT",
-            "house_signs": house_splits,
-            "cusp_signs": cusp_sign_list,
-            "intercepted_signs": intercepts,
-        }
