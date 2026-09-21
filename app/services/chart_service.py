@@ -35,16 +35,10 @@ class ChartService:
             SWISS_FLAGS = swe.FLG_MOSEPH | swe.FLG_SPEED
             HAVE_SWE_FILES = False
 
-def _compute_natal_chart(self, dt_local: datetime, lat: float, lon_east: float, tz_name: str, -> NatalChartResponse:
-        """Compute a natal chart from the request."""
-        dt_local = datetime.fromisoformat(request.datetime_local)
-        if dt_local.tzinfo is None:
-            dt_local = dt_local.replace(tzinfo=tz.gettz(request.timezone))
-
-        dt_utc = dt_local.astimezone(tz.UTC)
-        requested_asteroids = getattr(request, "asteroids", []) or []
-        star_scope = getattr(request, "star_scope", "MAJOR_GC") or "MAJOR_GC"
-        star_method = getattr(request, "star_method", "STELLA_PARTILE") or "STELLA_PARTILE"
+def _compute_natal_chart(self, dt_local: datetime, lat: float, lon_east: float, tz_name: str,
+                             house_system: str = "WHOLE", asteroids: Optional[List[int]] = None,
+                             swe_path: str = None, star_scope: str = "MAJOR_GC",
+                             star_method: str = "STELLA_PARTILE") -> Dict:
 
         chart_data = self._compute_natal_chart(
             dt_local,
