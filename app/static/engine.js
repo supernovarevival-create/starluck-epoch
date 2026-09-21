@@ -472,10 +472,10 @@
     var aspStyle = aspEl ? aspEl.value : "DEGREE_STD";
     var ayan = (ayanEl && ayanEl.value) ? parseFloat(ayanEl.value) : 0;
 
-    var starScopeEl = document.getElementById("sn-star-scope");
     var starMethodEl = document.getElementById("sn-star-method");
+    var rawMethod = starMethodEl ? starMethodEl.value : "";
     var starScope = starScopeEl ? starScopeEl.value : "MAJOR_GC";
-    var starMethod = starMethodEl ? starMethodEl.value : "STELLA_PARTILE";
+    var starMethod = rawMethod.indexOf("COSMIC") !== -1 ? "COSMIC_ASCENDANCE" : "STELLA_PARTILE";
 
     var h1Label = snGetHouseSystemName(h1);
     var h2Label = (h2 !== "NONE" && h2 !== h1) ? snGetHouseSystemName(h2) : null;
