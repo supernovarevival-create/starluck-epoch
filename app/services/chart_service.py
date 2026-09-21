@@ -80,6 +80,7 @@ class ChartService:
                 for name, planet in chart_data["planets"].items()
             },
             asteroids=chart_data.get("asteroids", {}),
+            fixed_stars=chart_data.get("fixed_stars", []),
             aspects=chart_data["aspects"],
             moon_phase={
                 "name": chart_data["moon_phase"]["name"],
@@ -221,6 +222,79 @@ class ChartService:
                 except Exception as ast_err:
                     print(f"Skipping asteroid {ast_id}: {ast_err}")
 
+# -------------------------------------------------------------
+        # FIXED STARS & SAGITTARIUS A* (GALACTIC CENTER)
+        # -------------------------------------------------------------
+        fixed_star_conjunctions = []
+        if HAVE_SWE:
+            import swisseph as swe_calc
+
+            # Curated catalog: (Name, Category, Base Max Orb for Cosmic Ascendance)
+            STAR_CATALOG = [
+                # The 4 Royal Stars
+                ("Aldebaran", "Royal Star", 5.0),
+                ("Regulus", "Royal Star", 5.0),
+                ("Antares", "Royal Star", 5.0),
+                ("Fomalhaut", "Royal Star", 5.0),
+                
+                # Major Behenian Stars
+                ("Algol", "Behenian Star", 3.0),
+                ("Alcyone", "Behenian Star (Pleiades)", 2.5),
+                ("Aldebaran", "Behenian Star", 3.0),
+                ("Sirius", "Behenian Star", 3.0),
+                ("Procyon", "Behenian Star", 2.5),
+                ("Regulus", "Behenian Star", 3.0),
+                ("Spica", "Behenian Star", 3.0),
+                ("Arcturus", "Behenian Star", 3.0),
+                ("Vega", "Behenian Star", 3.0),
+                ("Altair", "Behenian Star", 2.5),
+                ("Deneb Algedi", "Behenian Star", 2.5),
+                
+                # Deep Space / Cosmic
+                (",Galactic Center", "Cosmic Point", 2.5),
+            ]
+
+            # Collect bodies to test for conjunctions (planets, angles, nodes)
+            target_bodies = {}
+            for p_name, p_data in planets.items():
+                target_bodies[p_name] = p_data["lon"]
+            target_bodies["ASC"] = asc
+            target_bodies["MC"] = mc
+
+            for star_name, category, max_allowed_orb in STAR_CATALOG:
+                try:
+                    star_res, _ = swe_calc.fixstar2_ut(star_name, tjd_ut, swe_calc.FLG_SWIEPH)
+                    s_lon = float(star_res[0])
+                    display_name = "Sagittarius A* (Galactic Center)" if "Galactic" in star_name else star_name.lstrip(",")
+
+                    # Check conjunction against each planet/angle
+                    for body_name, b_lon in target_bodies.items():
+                        diff = abs(s_lon - b_lon)
+                        if diff > 180:
+                            diff = 360 - diff
+
+                        # If using Cosmic Ascendance, use tiered max_allowed_orb; 
+                        # If strict orb, you could enforce diff <= 1.5
+                        if diff <= max_allowed_orb:
+                            s_sign, s_deg, _ = deg_to_signpos(s_lon)
+                            deg_int = int(diff)
+                            min_int = int(round((diff - deg_int) * 60))
+                            
+                            fixed_star_conjunctions.append({
+                                "star": display_name,
+                                "category": category,
+                                "star_lon": s_lon,
+                                "star_sign": s_sign,
+                                "star_deg": f"{int(s_deg)}°{int(round((s_deg - int(s_deg))*60)):02d}'",
+                                "body": body_name,
+                                "body_lon": b_lon,
+                                "orb": round(diff, 4),
+                                "orb_formatted": f"{deg_int}°{min_int:02d}'",
+                            })
+                except Exception as star_err:
+                    # If an individual star lookup fails, skip quietly
+                    continue
+
         return {
             "datetime_utc": dt_utc.isoformat(),
             "location": {"lat": lat, "lon": lon_east, "tz": tz_name},
@@ -229,6 +303,7 @@ class ChartService:
             "house_system": hs,
             "planets": planets,
             "asteroids": calculated_asteroids,
+            "fixed_stars": fixed_star_conjunctions,
             "aspects": aspects,
             "moon_phase": {"name": phase_name, "angle": phase_angle},
             "sect": "DAY" if day_chart else "NIGHT",
