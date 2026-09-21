@@ -3,6 +3,8 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
 import logging
 import os
 
@@ -29,6 +31,9 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # CORS middleware
 app.add_middleware(
