@@ -152,7 +152,17 @@ class ChartService:
             "retro": False
         }
 
-        aspects = find_aspects({k: v["lon"] for k, v in planets.items() if k != "PartOfFortune"})
+        raw_aspects = find_aspects({k: v["lon"] for k, v in planets.items() if k != "PartOfFortune"})
+        formatted_aspects = []
+        for a in raw_aspects:
+            if isinstance(a, dict):
+                p1 = a.get("p1", "")
+                asp_type = a.get("aspect", "")
+                p2 = a.get("p2", "")
+                off = a.get("off", 0.0)
+                formatted_aspects.append(f"{p1} {asp_type} {p2} (orb {off:.2f}°)")
+            else:
+                formatted_aspects.append(str(a))
         phase_name, phase_angle = moon_phase_info_from_lons(lons["Sun"], lons["Moon"])
 
         house_splits = house_sign_breakdown(houses)
@@ -420,7 +430,7 @@ class ChartService:
                             "orb_formatted": f"{orb_deg}°{orb_min:02d}'"
                         })
 
-        return {
+return {
             "datetime_utc": dt_utc.isoformat(),
             "location": {"lat": lat, "lon": lon_east, "tz": tz_name},
             "angles": {"ASC": asc, "DS": norm360(asc + 180), "MC": mc, "IC": norm360(mc + 180)},
@@ -429,7 +439,7 @@ class ChartService:
             "planets": planets,
             "asteroids": calculated_asteroids,
             "fixed_stars": fixed_star_conjunctions,
-            "aspects": aspects,
+            "aspects": formatted_aspects,  # <-- Pass formatted strings here!
             "moon_phase": {"name": phase_name, "angle": phase_angle},
             "sect": "DAY" if day_chart else "NIGHT",
             "house_signs": house_splits,
