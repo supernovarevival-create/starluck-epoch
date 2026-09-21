@@ -53,7 +53,13 @@ class ChartService:
     """Service for chart calculations."""
 
     def __init__(self, swe_path: str = None):
-        # Resolve to root directory where ephemeris_data was downloaded
+        """Initialize chart service and mount ephemeris path."""
+        # Calculate root_dir:
+        # Path(__file__) is app/services/chart_service.py
+        # .parent is app/services
+        # .parent.parent is app
+        # .parent.parent.parent is project root where ephemeris_data was built
+        root_dir = Path(__file__).resolve().parent.parent.parent
         self.ephe_dir = root_dir / "ephemeris_data"
         self.swe_path = str(self.ephe_dir)
         self._setup_swiss_ephemeris()
