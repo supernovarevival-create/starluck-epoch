@@ -456,6 +456,13 @@
       raw += "Zodiac System:    " + zod + (zod === 'SIDEREAL' ? " (Ayanamsa " + ayan + ")" : "") + "\n";
       raw += "Primary System:   " + h1Label + "\n";
       if (h2Label) raw += "Secondary System: " + h2Label + "\n";
+      if (d1.sect) raw += "Chart Sect:       " + d1.sect + " CHART\n";
+      if (d1.moon_phase && d1.moon_phase.name) {
+        raw += "Moon Phase:       " + d1.moon_phase.name + " (" + Math.round(d1.moon_phase.angle || 0) + "°)\n";
+      }
+      if (d1.intercepted_signs && d1.intercepted_signs.length > 0) {
+        raw += "Intercepted:      " + d1.intercepted_signs.join(", ") + "\n";
+      }
       if (isUnknown) {
         raw += "Time Status:      UNKNOWN" + (knownRising !== "NONE" ? " (" + knownRising + " Rising Specified)\n" : " (12:00 PM Solar Default)\n");
       }
@@ -463,6 +470,30 @@
       raw += snPad("Body / Point", 16) + snPad("Longitude", 18) + snPad("H (" + h1Label.substr(0,4) + ")", 12);
       if (h2Label) raw += snPad("H (" + h2Label.substr(0,4) + ")", 12);
       raw += "\n----------------------------------------------------------------------\n";
+
+      // 0. SECT & OVERVIEW BADGES
+      var overviewEl = document.getElementById("sn-display-overview");
+      if (overviewEl) {
+        var sectName = d1.sect || "DAY";
+        var sectColor = (sectName === "DAY") ? "#fbbf24" : "#818cf8";
+        var sectIcon = (sectName === "DAY") ? "☀️" : "🌙";
+        overviewEl.innerHTML = 
+          '<span class="sn-meta-pill" style="border-color:' + sectColor + '; color:' + sectColor + ';">' + sectIcon + ' Sect: <strong>' + sectName + ' CHART</strong></span>' +
+          '<span class="sn-meta-pill">Primary: <strong>' + h1Label + '</strong></span>' +
+          (h2Label ? '<span class="sn-meta-pill">Comparison: <strong>' + h2Label + '</strong></span>' : '') +
+          '<span class="sn-meta-pill">Zodiac: <strong>' + zod + '</strong></span>';
+      }
+
+      // 0b. MOON PHASE
+      var moonEl = document.getElementById("sn-display-moon");
+      if (moonEl && d1.moon_phase) {
+        var pAngle = Math.round(d1.moon_phase.angle || 0);
+        var pName = d1.moon_phase.name || "Unknown Phase";
+        var illum = Math.round((1 - Math.cos((pAngle * Math.PI) / 180)) / 2 * 100);
+        moonEl.innerHTML = 
+          '<div><strong>Phase:</strong> ' + pName + ' <span style="color:#2dd4bf;">(' + pAngle + '° Elongation)</span></div>' +
+          '<div style="color:#94a3b8; font-size:0.8rem; margin-top:2px;">Illumination: ~' + illum + '% | Lunar Cycle Progress: ' + Math.round((pAngle / 360) * 100) + '%</div>';
+      }
 
       var angHtml = "";
       var plaHtml = "";
@@ -570,7 +601,7 @@
       var astBox = document.getElementById('sn-display-asteroids');
       if (astBox) astBox.innerHTML = astHtml || '<span style="color:#64748b;">None calculated</span>';
 
-// 4. FIXED STARS & COSMIC POINTS
+      // 4. FIXED STARS & COSMIC POINTS
       var starsBox = document.getElementById("sn-display-stars");
       var starsHeading = document.getElementById("sn-stars-heading");
       var starsList = (d1 && d1.fixed_stars) ? d1.fixed_stars : [];
@@ -618,6 +649,23 @@
           var sh2 = window.snAdjustToZodiac(hDeg, zod, ayan);
           hseHtml += '<div>House ' + (idx + 1) + ': ' + window.snFormatZodiac(sh2) + '</div>';
         });
+      }
+
+      // 5b. INTERCEPTED SIGNS & DUPLICATED HOUSES
+      var interceptWrap = document.getElementById("sn-intercepts-wrap");
+      var interceptEl = document.getElementById("sn-display-intercepts");
+      var interceptedList = (d1 && d1.intercepted_signs) ? d1.intercepted_signs : [];
+
+      if (interceptWrap && interceptEl) {
+        if (interceptedList.length > 0 && (!isUnknown || knownRising !== "NONE")) {
+          interceptWrap.style.display = "block";
+          interceptEl.innerHTML = 
+            '<div><strong>Intercepted Signs:</strong> ' + interceptedList.join(", ") + '</div>' +
+            '<div style="font-size:0.78rem; color:#94a3b8; margin-top:3px;">These signs are entirely contained inside houses without holding a house cusp.</div>';
+        } else {
+          interceptWrap.style.display = "none";
+          interceptEl.innerHTML = "";
+        }
       }
 
       // 6. ASPECTS
