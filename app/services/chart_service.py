@@ -74,7 +74,7 @@ class ChartService:
     def _compute_natal_chart(self, dt_local: datetime, lat: float, lon_east: float, tz_name: str,
                              house_system: str = "WHOLE", asteroids: Optional[List[int]] = None,
                              swe_path: str = None, star_scope: str = "MAJOR_GC",
-                             star_method: str = "STELLA_PARTILE") -> Dict[str, Any]:
+                             star_method: str = "STELLA_PARTILE") -> Dict[str, any]:
         """Compute natal chart."""
         from app.services.astrology_core import (
             planet_longitudes, swiss_angles_and_houses, is_day_chart,
