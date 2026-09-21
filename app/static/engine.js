@@ -143,7 +143,7 @@
     }
 
     if (!foundId) {
-      alert("Could not identify that asteroid. Select from the dropdown or type an ID number.");
+      alert("Could not identify that asteroid. Select from the dropdown or enter an ID number.");
       return;
     }
 
@@ -160,7 +160,8 @@
 
   window.snToggleAyanamsa = function() {
     var z = document.getElementById('sn-zodiac').value;
-    document.getElementById('sn-ayanamsa-wrapper').style.display = (z === 'SIDEREAL') ? 'block' : 'none';
+    var wrapper = document.getElementById('sn-ayanamsa-wrapper');
+    if (wrapper) wrapper.style.display = (z === 'SIDEREAL') ? 'block' : 'none';
   };
 
   window.snFindCity = async function() {
@@ -228,7 +229,7 @@
   };
 
   function snPad(str, len) {
-    str = String(str);
+    str = String(str || "");
     while (str.length < len) str += " ";
     return str;
   }
@@ -323,23 +324,27 @@
     disp.style.display = "none";
     out.style.display = "none";
 
+    var asteroidIdList = window.snActive.map(function(a) { return parseInt(a.id); });
+
     var baseReq = {
       datetime_local: formattedDT,
       timezone: tz,
       location: { lat: parseFloat(lat), lon: parseFloat(lon), elevation_m: 0 },
-      asteroids: window.snActive.map(function(a) { return a.id; })
+      asteroids: asteroidIdList
     };
 
     try {
+      // 1. Fetch Primary System
       var req1 = Object.assign({}, baseReq, { house_system: h1 });
       var res1 = await fetch('https://supernova-calc-engine.onrender.com/api/v1/natal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(req1)
       });
-      if (!res1.ok) throw new Error("API status: " + res1.status);
+      if (!res1.ok) throw new Error("Primary API error: " + res1.status);
       var d1 = await res1.json();
 
+      // 2. Fetch Secondary System (if selected)
       var d2Cusps = null;
       if (h2 !== "NONE" && h2 !== h1) {
         var req2 = Object.assign({}, baseReq, { house_system: h2 });
@@ -355,13 +360,13 @@
       }
 
       var raw = "";
-      raw += "Zodiac System:   " + zod + (zod === 'SIDEREAL' ? " (Ayanamsa " + ayan + ")" : "") + "\n";
-      raw += "Primary Houses:  " + h1 + "\n";
-      if (d2Cusps) raw += "Secondary Houses:" + h2 + "\n";
-      raw += "---------------------------------------------------------------\n";
-      raw += snPad("Body", 14) + snPad("Longitude", 18) + snPad("H (" + h1.substr(0,4) + ")", 10);
-      if (d2Cusps) raw += snPad("H (" + h2.substr(0,4) + ")", 10);
-      raw += "\n---------------------------------------------------------------\n";
+      raw += "Zodiac System:    " + zod + (zod === 'SIDEREAL' ? " (Ayanamsa " + ayan + ")" : "") + "\n";
+      raw += "Primary System:   " + h1 + "\n";
+      if (d2Cusps) raw += "Secondary System: " + h2 + "\n";
+      raw += "----------------------------------------------------------------------\n";
+      raw += snPad("Body / Point", 16) + snPad("Longitude", 18) + snPad("H (" + h1.substr(0,4) + ")", 12);
+      if (d2Cusps) raw += snPad("H (" + h2.substr(0,4) + ")", 12);
+      raw += "\n----------------------------------------------------------------------\n";
 
       var angHtml = "";
       var plaHtml = "";
@@ -369,16 +374,28 @@
       var hseHtml = "";
       var aspBodies = {};
 
+      // 1. ALL FOUR ANGLES (ASC, DS, MC, IC)
       if (d1.angles) {
-        var asc = window.snAdjustToZodiac(d1.angles.ASC, zod, ayan);
-        var mc = window.snAdjustToZodiac(d1.angles.MC, zod, ayan);
-        angHtml += '<div><strong>Ascendant:</strong> ' + window.snFormatZodiac(asc) + '</div>';
-        angHtml += '<div><strong>Midheaven:</strong> ' + window.snFormatZodiac(mc) + '</div>';
-        raw += snPad("Ascendant", 14) + snPad(window.snFormatZodiac(asc), 18) + snPad("House 1", 10) + "\n";
-        raw += snPad("Midheaven", 14) + snPad(window.snFormatZodiac(mc), 18) + snPad("House 10", 10) + "\n";
-        aspBodies["Ascendant"] = asc;
+        var ascDeg = window.snAdjustToZodiac(d1.angles.ASC, zod, ayan);
+        var dsDeg = window.snAdjustToZodiac(d1.angles.DS, zod, ayan);
+        var mcDeg = window.snAdjustToZodiac(d1.angles.MC, zod, ayan);
+        var icDeg = window.snAdjustToZodiac(d1.angles.IC, zod, ayan);
+
+        angHtml += '<div><strong>Ascendant (ASC):</strong> ' + window.snFormatZodiac(ascDeg) + '</div>';
+        angHtml += '<div><strong>Descendant (DS):</strong> ' + window.snFormatZodiac(dsDeg) + '</div>';
+        angHtml += '<div><strong>Midheaven (MC):</strong> ' + window.snFormatZodiac(mcDeg) + '</div>';
+        angHtml += '<div><strong>Imum Coeli (IC):</strong> ' + window.snFormatZodiac(icDeg) + '</div>';
+
+        raw += snPad("Ascendant", 16) + snPad(window.snFormatZodiac(ascDeg), 18) + snPad("House 1", 12) + (d2Cusps ? snPad("House 1", 12) : "") + "\n";
+        raw += snPad("Descendant", 16) + snPad(window.snFormatZodiac(dsDeg), 18) + snPad("House 7", 12) + (d2Cusps ? snPad("House 7", 12) : "") + "\n";
+        raw += snPad("Midheaven", 16) + snPad(window.snFormatZodiac(mcDeg), 18) + snPad("House 10", 12) + (d2Cusps ? snPad("House 10", 12) : "") + "\n";
+        raw += snPad("Imum Coeli", 16) + snPad(window.snFormatZodiac(icDeg), 18) + snPad("House 4", 12) + (d2Cusps ? snPad("House 4", 12) : "") + "\n";
+
+        aspBodies["Ascendant"] = ascDeg;
+        aspBodies["Midheaven"] = mcDeg;
       }
 
+      // 2. PLANETS + BOTH NORTH AND SOUTH NODES
       if (d1.planets) {
         for (var pName in d1.planets) {
           var pLon = window.snAdjustToZodiac(d1.planets[pName].lon, zod, ayan);
@@ -386,34 +403,39 @@
           var ph1 = snDetermineHouse(pLon, d1.houses);
           var ph2 = d2Cusps ? snDetermineHouse(pLon, d2Cusps) : null;
 
-          raw += snPad(pName, 14) + snPad(window.snFormatZodiac(pLon) + retro, 18) + snPad("House " + ph1, 10);
-          if (d2Cusps) raw += snPad("House " + ph2, 10);
+          var dualTag = d2Cusps ? (' <span style="color:#94a3b8; font-size:0.75rem;">(H' + ph1 + ' / H' + ph2 + ')</span>') : (' <span style="color:#94a3b8; font-size:0.75rem;">(H' + ph1 + ')</span>');
+          var retroBadge = d1.planets[pName].retro ? ' <span style="color:#f87171; font-weight:bold;">(R)</span>' : '';
+
+          raw += snPad(pName, 16) + snPad(window.snFormatZodiac(pLon) + retro, 18) + snPad("House " + ph1, 12);
+          if (d2Cusps) raw += snPad("House " + ph2, 12);
           raw += "\n";
 
-          var retroBadge = d1.planets[pName].retro ? ' <span style="color:#f87171; font-weight:bold;">(R)</span>' : '';
-          var tag = d2Cusps ? (' <span style="color:#94a3b8; font-size:0.75rem;">(H' + ph1 + ' / H' + ph2 + ')</span>') : (' <span style="color:#94a3b8; font-size:0.75rem;">(H' + ph1 + ')</span>');
-          plaHtml += '<div><strong>' + pName + ':</strong> ' + window.snFormatZodiac(pLon) + retroBadge + tag + '</div>';
+          plaHtml += '<div><strong>' + pName + ':</strong> ' + window.snFormatZodiac(pLon) + retroBadge + dualTag + '</div>';
           aspBodies[pName] = pLon;
 
+          // If TrueNode or NorthNode, render True North Node AND South Node explicitly
           if (pName === "TrueNode" || pName === "NorthNode") {
             var snLon = (pLon + 180) % 360;
             var snh1 = snDetermineHouse(snLon, d1.houses);
             var snh2 = d2Cusps ? snDetermineHouse(snLon, d2Cusps) : null;
 
-            raw += snPad("SouthNode", 14) + snPad(window.snFormatZodiac(snLon) + retro, 18) + snPad("House " + snh1, 10);
-            if (d2Cusps) raw += snPad("House " + snh2, 10);
+            raw += snPad("SouthNode", 16) + snPad(window.snFormatZodiac(snLon) + retro, 18) + snPad("House " + snh1, 12);
+            if (d2Cusps) raw += snPad("House " + snh2, 12);
             raw += "\n";
 
             var snTag = d2Cusps ? (' <span style="color:#94a3b8; font-size:0.75rem;">(H' + snh1 + ' / H' + snh2 + ')</span>') : (' <span style="color:#94a3b8; font-size:0.75rem;">(H' + snh1 + ')</span>');
-            angHtml += '<div><strong>SouthNode:</strong> ' + window.snFormatZodiac(snLon) + retroBadge + snTag + '</div>';
+            angHtml += '<div><strong>South Node:</strong> ' + window.snFormatZodiac(snLon) + retroBadge + snTag + '</div>';
             aspBodies["SouthNode"] = snLon;
           }
         }
       }
 
+      // 3. ASTEROIDS
       raw += "\n--- Asteroids ---\n";
-      if (d1.asteroids && Object.keys(d1.asteroids).length > 0) {
-        for (var aKey in d1.asteroids) {
+      var astKeys = d1.asteroids ? Object.keys(d1.asteroids) : [];
+      if (astKeys.length > 0) {
+        for (var i = 0; i < astKeys.length; i++) {
+          var aKey = astKeys[i];
           var aObj = d1.asteroids[aKey];
           var aId = parseInt(aObj.id || aKey);
           var mAst = window.snActive.find(function(a) { return a.id === aId; });
@@ -424,8 +446,8 @@
           var ah1 = snDetermineHouse(aLon, d1.houses);
           var ah2 = d2Cusps ? snDetermineHouse(aLon, d2Cusps) : null;
 
-          raw += snPad(aName, 14) + snPad(window.snFormatZodiac(aLon) + aRetro, 18) + snPad("House " + ah1, 10);
-          if (d2Cusps) raw += snPad("House " + ah2, 10);
+          raw += snPad(aName, 16) + snPad(window.snFormatZodiac(aLon) + aRetro, 18) + snPad("House " + ah1, 12);
+          if (d2Cusps) raw += snPad("House " + ah2, 12);
           raw += "\n";
 
           var aBadge = aObj.retro ? ' <span style="color:#f87171; font-weight:bold;">(R)</span>' : '';
@@ -436,13 +458,22 @@
       }
       document.getElementById('sn-display-asteroids').innerHTML = astHtml || '<span style="color:#64748b;">None calculated</span>';
 
+      // 4. DUAL HOUSE CUSPS DISPLAY (PRIMARY & SECONDARY COMPARISON)
       if (Array.isArray(d1.houses)) {
+        hseHtml += '<div style="color:#2dd4bf; font-weight:bold; margin-bottom:4px;">' + h1 + (d2Cusps ? (' vs ' + h2) : '') + '</div>';
         d1.houses.forEach(function(hDeg, idx) {
-          var sh = window.snAdjustToZodiac(hDeg, zod, ayan);
-          hseHtml += '<div><strong>House ' + (idx + 1) + ':</strong> ' + window.snFormatZodiac(sh) + '</div>';
+          var sh1 = window.snAdjustToZodiac(hDeg, zod, ayan);
+          var line = '<div><strong>House ' + (idx + 1) + ':</strong> ' + window.snFormatZodiac(sh1);
+          if (d2Cusps && d2Cusps[idx] !== undefined) {
+            var sh2 = window.snAdjustToZodiac(d2Cusps[idx], zod, ayan);
+            line += ' <span style="color:#94a3b8; font-size:0.8rem;">(' + window.snFormatZodiac(sh2) + ')</span>';
+          }
+          line += '</div>';
+          hseHtml += line;
         });
       }
 
+      // 5. ASPECTS
       var asps = snFindAspects(aspBodies, aspStyle);
       var aspHtml = "";
       if (asps.length > 0) {
@@ -461,7 +492,7 @@
       out.style.display = "block";
 
     } catch (err) {
-      alert("Calculation timed out or free Render instance is waking up. Please wait 10 seconds and try once more.");
+      alert("Calculation timed out or instance is waking up. Please wait 10 seconds and try once more.");
       console.error(err);
     } finally {
       loading.style.display = "none";
@@ -478,13 +509,12 @@
     setTimeout(function() { fb.style.display = "none"; }, 4000);
   };
 
-  // Safe timer-based execution that waits for elements to exist
   function initEngine() {
     if (document.getElementById('sn-active-chips')) {
       window.snPopulateDatalist();
       window.snRenderChips();
     } else {
-      setTimeout(initEngine, 100);
+      setTimeout(initEngine, 80);
     }
   }
 
