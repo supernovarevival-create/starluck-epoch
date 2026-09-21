@@ -17,7 +17,6 @@ class ChartService:
 
     def __init__(self, swe_path: str = None):
         """Initialize chart service with the local ephemeris_data path."""
-        # Find project root where 'ephemeris_data' lives
         root_dir = Path(__file__).resolve().parent.parent.parent
         self.ephe_dir = root_dir / "ephemeris_data"
         self.swe_path = str(self.ephe_dir)
@@ -35,7 +34,7 @@ class ChartService:
             SWISS_FLAGS = swe.FLG_MOSEPH | swe.FLG_SPEED
             HAVE_SWE_FILES = False
 
-def compute_natal_chart(self, request: NatalChartRequest) -> NatalChartResponse:
+    def compute_natal_chart(self, request: NatalChartRequest) -> NatalChartResponse:
         """Compute a natal chart from the request."""
         dt_local = datetime.fromisoformat(request.datetime_local)
         if dt_local.tzinfo is None:
@@ -72,9 +71,10 @@ def compute_natal_chart(self, request: NatalChartRequest) -> NatalChartResponse:
             sect=chart_data["sect"]
         )
 
-def _compute_natal_chart(self, dt_local: datetime, lat: float, lon_east: float, tz_name: str,
+    def _compute_natal_chart(self, dt_local: datetime, lat: float, lon_east: float, tz_name: str,
                              house_system: str = "WHOLE", asteroids: Optional[List[int]] = None,
-                             swe_path: str = None) -> Dict:
+                             swe_path: str = None, star_scope: str = "MAJOR_GC",
+                             star_method: str = "STELLA_PARTILE") -> Dict[str, Any]:
         """Compute natal chart."""
         from app.services.astrology_core import (
             planet_longitudes, swiss_angles_and_houses, is_day_chart,
