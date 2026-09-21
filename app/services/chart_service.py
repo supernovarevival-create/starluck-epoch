@@ -248,21 +248,37 @@ class ChartService:
             target_bodies["ASC"] = asc
             target_bodies["MC"] = mc
 
-            for star_query, display_name, category, cosmic_orb in stars_to_scan:
+for star_query, display_name, category, cosmic_orb in stars_to_scan:
                 s_lon = None
+                # Try 1: Standard query name
                 try:
                     res, _ = swe_calc.fixstar2_ut(star_query, tjd_ut, swe_calc.FLG_SWIEPH)
                     s_lon = float(res[0])
                 except Exception:
+                    pass
+
+                # Try 2: Traditional SwissEph comma-prefix format (e.g., ",Regulus", ",Algol")
+                if s_lon is None:
                     try:
-                        res, _ = swe_calc.fixstar2_ut(star_query, tjd_ut, swe_calc.FLG_MOSEPH)
+                        res, _ = swe_calc.fixstar2_ut(f",{star_query}", tjd_ut, swe_calc.FLG_SWIEPH)
                         s_lon = float(res[0])
                     except Exception:
                         pass
 
+                # Try 3: Moseph flag fallback
+                if s_lon is None:
+                    try:
+                        res, _ = swe_calc.fixstar2_ut(star_query, tjd_ut, swe_calc.FLG_MOSEPH)
+                        s_lon = float(res[0])
+                    except Exception:
+                        try:
+                            res, _ = swe_calc.fixstar2_ut(f",{star_query}", tjd_ut, swe_calc.FLG_MOSEPH)
+                            s_lon = float(res[0])
+                        except Exception:
+                            pass
+
                 if s_lon is None:
                     continue
-
                 max_orb = 1.25 if star_method == "STELLA_PARTILE" else cosmic_orb
 
                 for body_name, b_lon in target_bodies.items():
