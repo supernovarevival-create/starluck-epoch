@@ -334,26 +334,15 @@
   }
 
   // --- PURE SVG CHART WHEEL GENERATOR ---
-  function snRenderWheelSVG(title, houses, planets, angles, isUnknown) {
-    if (!houses || houses.length !== 12) return "";
-
-    var size = 360;
-    var center = size / 2;
-    var rOuter = 165;
-    var rZodiac = 135;
-    var rHouses = 100;
-    var rInner = 40;
-
-    // Use Ascendant as 9 o'clock (180 deg in standard screen math), or House 1 cusp
-    var ascDeg = (angles && angles.ASC !== undefined) ? angles.ASC : houses[0];
-
-    // Converts chart ecliptic degrees to SVG coordinates oriented with ASC on the left (180 deg)
+// Converts chart ecliptic degrees to standard SVG astrological wheel coordinates
+    // (Ascendant locked at 9 o'clock / 180°, counter-clockwise zodiac flow)
     function degToXY(deg, radius) {
-      // Rotate so Ascendant is at 180° (west/left)
-      var rad = ((180 - (deg - ascDeg)) % 360) * (Math.PI / 180);
+      // Invert angle progression so ecliptic advances counter-clockwise on screen
+      var angleDeg = (180 + (deg - ascDeg)) % 360;
+      var rad = angleDeg * (Math.PI / 180);
       return {
         x: (center + radius * Math.cos(rad)).toFixed(2),
-        y: (center - radius * Math.sin(rad)).toFixed(2)
+        y: (center + radius * Math.sin(rad)).toFixed(2)
       };
     }
 
