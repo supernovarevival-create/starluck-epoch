@@ -1,4 +1,22 @@
 (function() {
+  // Declare chart response holders at the top of the function
+    var d1 = null;
+    var d2Cusps = null;
+
+    try {
+      var req1 = Object.assign({}, baseReq, { house_system: h1 });
+      var res1 = await fetch('https://supernova-calc-engine.onrender.com/api/v1/natal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req1)
+      });
+      if (!res1.ok) {
+        var errBody = await res1.text();
+        alert("BACKEND REASON: " + errBody);
+        throw new Error("Primary API error: " + res1.status + " Details: " + errBody);
+      }
+      d1 = await res1.json();  // <-- Assign to the outer d1 (no 'var')
+      console.log("Supernova Engine Raw Payload:", d1);
   window.SN_CATALOG = [
     { id: 1, name: "Ceres" },
     { id: 2, name: "Pallas" },
