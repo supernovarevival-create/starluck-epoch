@@ -1,7 +1,5 @@
-"""Chart calculation service with automated Swiss Ephemeris asteroid downloader."""
+"""Chart calculation service using local Swiss Ephemeris files."""
 
-import os
-import urllib.request
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -13,59 +11,20 @@ from app.services.astrology_core import (
     HAVE_SWE, HAVE_SWE_FILES, SWISS_FLAGS, swe, house_sign_breakdown
 )
 
-# /tmp is ALWAYS writable on Linux / Render / AWS
-EPHE_DIR = Path("/tmp/ephe")
-EPHE_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def download_ephe_file(filename: str) -> bool:
-    """Download an ephemeris file from Astrodienst directly into /tmp/ephe."""
-    target_path = EPHE_DIR / filename
-    if target_path.exists() and target_path.stat().st_size > 1000:
-        return True
-
-    # Astrodienst organizes asteroids into ast0, ast1, ast2 folders
-    if filename.startswith("se") and filename.endswith(".se1") and filename != "seas_18.se1":
-        try:
-            num = int(filename[2:7])
-            subfolder = f"ast{num // 1000}"
-            url = f"https://www.astro.com/ftp/swisseph/ephe/{subfolder}/{filename}"
-        except Exception:
-            url = f"https://www.astro.com/ftp/swisseph/ephe/{filename}"
-    else:
-        url = f"https://www.astro.com/ftp/swisseph/ephe/{filename}"
-
-    try:
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-        req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=12) as response:
-            content = response.read()
-            with open(target_path, "wb") as f:
-                f.write(content)
-        print(f"Successfully downloaded {filename} ({len(content)} bytes) to {target_path}")
-        return True
-    except Exception as e:
-        print(f"Failed downloading {filename} from {url}: {e}")
-        return False
-
 
 class ChartService:
     """Service for chart calculations."""
 
     def __init__(self, swe_path: str = None):
-        """Initialize chart service and mount ephemeris path."""
-        # Calculate root_dir:
-        # Path(__file__) is app/services/chart_service.py
-        # .parent is app/services
-        # .parent.parent is app
-        # .parent.parent.parent is project root where ephemeris_data was built
+        """Initialize chart service with the local ephemeris_data path."""
+        # Find project root where 'ephemeris_data' lives
         root_dir = Path(__file__).resolve().parent.parent.parent
         self.ephe_dir = root_dir / "ephemeris_data"
         self.swe_path = str(self.ephe_dir)
         self._setup_swiss_ephemeris()
 
     def _setup_swiss_ephemeris(self):
-        """Setup Swiss Ephemeris with local /tmp/ephe directory."""
+        """Setup Swiss Ephemeris with local directory."""
         global HAVE_SWE_FILES, SWISS_FLAGS
 
         if HAVE_SWE:
@@ -83,7 +42,6 @@ class ChartService:
             dt_local = dt_local.replace(tzinfo=tz.gettz(request.timezone))
 
         dt_utc = dt_local.astimezone(tz.UTC)
-
         requested_asteroids = getattr(request, "asteroids", []) or []
 
         chart_data = self._compute_natal_chart(
@@ -221,6 +179,7 @@ class ChartService:
 
             AST_OFFSET = getattr(swe_calc, "AST_OFFSET", 10000)
 
+            # Native Swiss Eph IDs inside seas_18.se1
             NATIVE_MAP = {
                 1: getattr(swe_calc, "CERES", 17),
                 2: getattr(swe_calc, "PALLAS", 18),
@@ -234,33 +193,46 @@ class ChartService:
             tjd_ut = swe_calc.julday(dt_utc.year, dt_utc.month, dt_utc.day, hour_decimal)
 
             for ast_id in requested_asteroids:
-                ast_num = int(ast_id)
-                lon = None
-                retro = False
+                try:
+                    ast_num = int(ast_id)
+                    lon = None
+                    retro = False
 
-                if ast_num in NATIVE_MAP:
-                    try:
-                        res, _ = swe_calc.calc_ut(tjd_ut, NATIVE_MAP[ast_num], swe_calc.FLG_SWIEPH | swe_calc.FLG_SPEED)
-                        lon = float(res[0])
-                        retro = bool(res[3] < 0)
-                    except Exception as e:
-                        print(f"Asteroid {ast_num} calc error: {e}")
-                else:
-                    try:
-                        res, _ = swe_calc.calc_ut(tjd_ut, AST_OFFSET + ast_num, swe_calc.FLG_SWIEPH | swe_calc.FLG_SPEED)
-                        lon = float(res[0])
-                        retro = bool(res[3] < 0)
-                    except Exception as e:
-                        print(f"Asteroid offset {ast_num} error: {e}")
+                    if ast_num in NATIVE_MAP:
+                        target_id = NATIVE_MAP[ast_num]
+                    else:
+                        target_id = AST_OFFSET + ast_num
 
-                if lon is not None:
-                    s, d, _ = deg_to_signpos(lon)
-                    h_i = house_index_for_longitude(houses, lon)
-                    calculated_asteroids[str(ast_num)] = {
-                        "id": ast_num,
-                        "lon": lon,
-                        "sign": s,
-                        "deg": d,
-                        "house": h_i,
-                        "retro": retro
-                    }
+                    res, _ = swe_calc.calc_ut(tjd_ut, target_id, swe_calc.FLG_SWIEPH | swe_calc.FLG_SPEED)
+                    lon = float(res[0])
+                    retro = bool(res[3] < 0)
+
+                    if lon is not None:
+                        s, d, _ = deg_to_signpos(lon)
+                        h_i = house_index_for_longitude(houses, lon)
+                        calculated_asteroids[str(ast_num)] = {
+                            "id": ast_num,
+                            "lon": lon,
+                            "sign": s,
+                            "deg": d,
+                            "house": h_i,
+                            "retro": retro
+                        }
+                except Exception as ast_err:
+                    print(f"Skipping asteroid {ast_id}: {ast_err}")
+
+        return {
+            "datetime_utc": dt_utc.isoformat(),
+            "location": {"lat": lat, "lon": lon_east, "tz": tz_name},
+            "angles": {"ASC": asc, "DS": norm360(asc + 180), "MC": mc, "IC": norm360(mc + 180)},
+            "houses": houses,
+            "house_system": hs,
+            "planets": planets,
+            "asteroids": calculated_asteroids,
+            "aspects": aspects,
+            "moon_phase": {"name": phase_name, "angle": phase_angle},
+            "sect": "DAY" if day_chart else "NIGHT",
+            "house_signs": house_splits,
+            "cusp_signs": cusp_sign_list,
+            "intercepted_signs": intercepts,
+        }
