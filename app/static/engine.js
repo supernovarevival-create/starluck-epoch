@@ -591,6 +591,26 @@
       var hseHtml = "";
       var aspBodies = {};
 
+// --- RENDER DUAL WHEELS ---
+      var wheelsWrap = document.getElementById("sn-wheels-wrap");
+      var wPrimEl = document.getElementById("sn-wheel-primary");
+      var wSecEl = document.getElementById("sn-wheel-secondary");
+
+      if (wheelsWrap && wPrimEl && (!isUnknown || knownRising !== "NONE")) {
+        wheelsWrap.style.display = "block";
+        wPrimEl.innerHTML = snRenderWheelSVG(h1Label, d1.houses, d1.planets, d1.angles, isUnknown);
+
+        if (d2Cusps && h2Label) {
+          wSecEl.style.display = "block";
+          wSecEl.innerHTML = snRenderWheelSVG(h2Label, d2Cusps, d1.planets, d1.angles, isUnknown);
+        } else {
+          wSecEl.style.display = "none";
+          wSecEl.innerHTML = "";
+        }
+      } else if (wheelsWrap) {
+        wheelsWrap.style.display = "none";
+      }
+      
       // 1. ANGLES & NODES
       if (isUnknown && knownRising === "NONE") {
         angHtml = '<div style="color: #94a3b8; font-style: italic;">Birth time unknown: Angles (ASC/MC) omitted; chart calculated using 12:00 PM solar defaults.</div>';
