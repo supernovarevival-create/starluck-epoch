@@ -248,7 +248,7 @@ class ChartService:
             target_bodies["ASC"] = asc
             target_bodies["MC"] = mc
 
-for star_query, display_name, category, cosmic_orb in stars_to_scan:
+            for star_query, display_name, category, cosmic_orb in stars_to_scan:
                 s_lon = None
                 # Try 1: Standard query name
                 try:
