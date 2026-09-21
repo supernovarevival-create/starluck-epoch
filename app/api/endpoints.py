@@ -90,7 +90,7 @@ def compute_natal_chart(
         return result
     except Exception as e:
         error_data = {
-            "request": request.dict(),
+            "request": request.model_dump(),
             "error": str(e),
             "timestamp": datetime.now().isoformat()
         }
