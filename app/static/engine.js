@@ -357,7 +357,6 @@
     };
 
     try {
-      // 1. Fetch Primary System
       var req1 = Object.assign({}, baseReq, { house_system: h1 });
       var res1 = await fetch('https://supernova-calc-engine.onrender.com/api/v1/natal', {
         method: 'POST',
@@ -366,9 +365,8 @@
       });
       if (!res1.ok) throw new Error("Primary API error: " + res1.status);
       var d1 = await res1.json();
-      console.log("Supernova Engine API Response:", d1);
+      console.log("Supernova Engine Raw Payload:", d1);
 
-      // 2. Fetch Secondary System
       var d2Cusps = null;
       if (h2Label) {
         var req2 = Object.assign({}, baseReq, { house_system: h2 });
@@ -419,48 +417,58 @@
         aspBodies["Midheaven"] = mcDeg;
       }
 
-      // 2. PLANETARY BODIES + NODES
+      // 2. PLANETARY BODIES & NODES SEPARATION
       if (d1.planets) {
         for (var pName in d1.planets) {
           var pLon = window.snAdjustToZodiac(d1.planets[pName].lon, zod, ayan);
           var retro = d1.planets[pName].retro ? ' (R)' : '';
           var ph1 = snDetermineHouse(pLon, d1.houses);
           var ph2 = d2Cusps ? snDetermineHouse(pLon, d2Cusps) : null;
-
-          var dualTag = snFormatDualHouseBadge(ph1, h1Label, ph2, h2Label);
           var retroBadge = d1.planets[pName].retro ? ' <span style="color:#f87171; font-weight:bold;">(R)</span>' : '';
+          var dualTag = snFormatDualHouseBadge(ph1, h1Label, ph2, h2Label);
 
-          raw += snPad(pName, 16) + snPad(window.snFormatZodiac(pLon) + retro, 18) + snPad("House " + ph1, 12);
-          if (h2Label) raw += snPad("House " + ph2, 12);
-          raw += "\n";
-
-          plaHtml += '<div><strong>' + pName + ':</strong> ' + window.snFormatZodiac(pLon) + retroBadge + dualTag + '</div>';
-          aspBodies[pName] = pLon;
-
-          // True Node and South Node
+          // If TrueNode or NorthNode, render inside ANGLES & NODES
           if (pName === "TrueNode" || pName === "NorthNode") {
+            var nnLine = '<div><strong>North Node:</strong> ' + window.snFormatZodiac(pLon) + retroBadge + dualTag + '</div>';
+            angHtml += nnLine;
+            raw += snPad("NorthNode", 16) + snPad(window.snFormatZodiac(pLon) + retro, 18) + snPad("House " + ph1, 12);
+            if (h2Label) raw += snPad("House " + ph2, 12);
+            raw += "\n";
+
+            // South Node (exact 180° opposite)
             var snLon = (pLon + 180) % 360;
             var snh1 = snDetermineHouse(snLon, d1.houses);
             var snh2 = d2Cusps ? snDetermineHouse(snLon, d2Cusps) : null;
+            var snTag = snFormatDualHouseBadge(snh1, h1Label, snh2, h2Label);
 
+            angHtml += '<div><strong>South Node:</strong> ' + window.snFormatZodiac(snLon) + retroBadge + snTag + '</div>';
             raw += snPad("SouthNode", 16) + snPad(window.snFormatZodiac(snLon) + retro, 18) + snPad("House " + snh1, 12);
             if (h2Label) raw += snPad("House " + snh2, 12);
             raw += "\n";
 
-            var snTag = snFormatDualHouseBadge(snh1, h1Label, snh2, h2Label);
-            angHtml += '<div><strong>South Node:</strong> ' + window.snFormatZodiac(snLon) + retroBadge + snTag + '</div>';
+            aspBodies["NorthNode"] = pLon;
             aspBodies["SouthNode"] = snLon;
+          } else {
+            // Standard Planets + Part of Fortune
+            raw += snPad(pName, 16) + snPad(window.snFormatZodiac(pLon) + retro, 18) + snPad("House " + ph1, 12);
+            if (h2Label) raw += snPad("House " + ph2, 12);
+            raw += "\n";
+
+            plaHtml += '<div><strong>' + pName + ':</strong> ' + window.snFormatZodiac(pLon) + retroBadge + dualTag + '</div>';
+            aspBodies[pName] = pLon;
           }
         }
       }
 
       // 3. ASTEROIDS
       raw += "\n--- Asteroids ---\n";
-      var astKeys = d1.asteroids ? Object.keys(d1.asteroids) : [];
+      var astData = d1.asteroids || {};
+      var astKeys = Object.keys(astData);
+      
       if (astKeys.length > 0) {
         for (var i = 0; i < astKeys.length; i++) {
           var aKey = astKeys[i];
-          var aObj = d1.asteroids[aKey];
+          var aObj = astData[aKey];
           var aId = parseInt(aObj.id || aKey);
           var mAst = window.snActive.find(function(a) { return a.id === aId; });
           var aName = mAst ? mAst.name : ("Asteroid " + aId);
@@ -482,19 +490,17 @@
       }
       document.getElementById('sn-display-asteroids').innerHTML = astHtml || '<span style="color:#64748b;">None calculated</span>';
 
-      // 4. SEPARATE STACKED HOUSE CUSPS
-      // Primary House Cusps Block
+      // 4. STACKED HOUSE CUSPS (PRIMARY THEN SECONDARY)
       if (Array.isArray(d1.houses)) {
-        hseHtml += '<div style="color:#2dd4bf; font-weight:bold; margin-bottom:6px; font-size:0.9rem;">House Cusps (' + h1Label + ')</div>';
+        hseHtml += '<div style="font-size:0.85rem; text-transform:uppercase; color:#2dd4bf; font-weight:700; margin-bottom:8px;">House Cusps (' + h1Label + ')</div>';
         d1.houses.forEach(function(hDeg, idx) {
           var sh1 = window.snAdjustToZodiac(hDeg, zod, ayan);
           hseHtml += '<div>House ' + (idx + 1) + ': ' + window.snFormatZodiac(sh1) + '</div>';
         });
       }
 
-      // Secondary House Cusps Block (Stacked cleanly below)
       if (d2Cusps && Array.isArray(d2Cusps)) {
-        hseHtml += '<div style="color:#2dd4bf; font-weight:bold; margin-top:16px; margin-bottom:6px; font-size:0.9rem;">House Cusps (' + h2Label + ')</div>';
+        hseHtml += '<div style="font-size:0.85rem; text-transform:uppercase; color:#2dd4bf; font-weight:700; margin-top:20px; margin-bottom:8px;">House Cusps (' + h2Label + ')</div>';
         d2Cusps.forEach(function(hDeg, idx) {
           var sh2 = window.snAdjustToZodiac(hDeg, zod, ayan);
           hseHtml += '<div>House ' + (idx + 1) + ': ' + window.snFormatZodiac(sh2) + '</div>';
