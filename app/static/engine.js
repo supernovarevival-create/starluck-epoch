@@ -344,11 +344,8 @@
     var rHouses = 100;
     var rInner = 40;
 
-    // Default Ascendant to House 1 cusp
     var ascDeg = (angles && angles.ASC !== undefined) ? angles.ASC : houses[0];
 
-    // Correct screen coordinates:
-    // Ascendant at 9 o'clock (180°), Houses 1, 2, 3 curve counter-clockwise through the bottom
     function degToXY(deg, radius) {
       var angleDeg = (180 + (deg - ascDeg)) % 360;
       var rad = angleDeg * (Math.PI / 180);
@@ -472,9 +469,10 @@
     var aspStyle = aspEl ? aspEl.value : "DEGREE_STD";
     var ayan = (ayanEl && ayanEl.value) ? parseFloat(ayanEl.value) : 0;
 
+    var starScopeEl = document.getElementById("sn-star-scope");
     var starMethodEl = document.getElementById("sn-star-method");
-    var rawMethod = starMethodEl ? starMethodEl.value : "";
     var starScope = starScopeEl ? starScopeEl.value : "MAJOR_GC";
+    var rawMethod = starMethodEl ? starMethodEl.value : "";
     var starMethod = rawMethod.indexOf("COSMIC") !== -1 ? "COSMIC_ASCENDANCE" : "STELLA_PARTILE";
 
     var h1Label = snGetHouseSystemName(h1);
@@ -518,7 +516,6 @@
         throw new Error("Primary API error: " + res1.status + " Details: " + errBody);
       }
       d1 = await res1.json();
-      console.log("Supernova Engine Raw Payload:", d1);
 
       if (h2Label) {
         var req2 = Object.assign({}, baseReq, { house_system: h2 });
