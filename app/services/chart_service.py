@@ -72,7 +72,7 @@ def compute_natal_chart(self, request: NatalChartRequest) -> NatalChartResponse:
             sect=chart_data["sect"]
         )
 
-    def _compute_natal_chart(self, dt_local: datetime, lat: float, lon_east: float, tz_name: str,
+def _compute_natal_chart(self, dt_local: datetime, lat: float, lon_east: float, tz_name: str,
                              house_system: str = "WHOLE", asteroids: Optional[List[int]] = None,
                              swe_path: str = None) -> Dict:
         """Compute natal chart."""
