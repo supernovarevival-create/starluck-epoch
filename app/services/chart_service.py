@@ -204,38 +204,44 @@ class ChartService:
                 except Exception as ast_err:
                     print(f"Skipping asteroid {ast_id}: {ast_err}")
 
-        # -------------------------------------------------------------
-        # FIXED STARS & SAGITTARIUS A* (GALACTIC CENTER)
-        # -------------------------------------------------------------
-        fixed_star_conjunctions = []
+fixed_star_conjunctions = []
 
-        if HAVE_SWE and star_scope != "NONE" and star_method != "NONE":
-            import swisseph as swe_calc
-
+        if star_scope != "NONE" and star_method != "NONE":
+            # Catalog of J2000.0 tropical longitudes (epoch 2000-01-01 12:00 TT)
+            # All stars precess eastward along the ecliptic at ~50.291 arcsec/year (0.0139697°/year)
+            # Tuple: (Display Name, J2000 Longitude, Category, Cosmic Ascendance Max Orb)
             CATALOG_STARS = [
-                ("Aldebaran", "Aldebaran", "Royal Star", 5.0),
-                ("Regulus", "Regulus", "Royal Star", 5.0),
-                ("Antares", "Antares", "Royal Star", 5.0),
-                ("Fomalhaut", "Fomalhaut", "Royal Star", 5.0),
-                ("Algol", "Algol", "Behenian Star", 3.0),
-                ("Alcyone", "Alcyone (Pleiades)", "Behenian Star", 2.5),
-                ("Sirius", "Sirius", "Behenian Star", 3.5),
-                ("Procyon", "Procyon", "Behenian Star", 2.5),
-                ("Spica", "Spica", "Behenian Star", 3.0),
-                ("Arcturus", "Arcturus", "Behenian Star", 3.0),
-                ("Vega", "Vega", "Behenian Star", 3.0),
-                ("Altair", "Altair", "Behenian Star", 2.5),
-                ("Deneb Algedi", "Deneb Algedi", "Behenian Star", 2.5),
-                ("Benetnasch", "Alkaid (Benetnasch)", "Behenian Star", 2.0),
-                ("Alphecca", "Alphecca", "Behenian Star", 2.0),
-                ("Betelgeuse", "Betelgeuse", "Major Star", 2.5),
-                ("Rigel", "Rigel", "Major Star", 2.5),
-                ("Bellatrix", "Bellatrix", "Major Star", 2.0),
-                ("Castor", "Castor", "Major Star", 2.0),
-                ("Pollux", "Pollux", "Major Star", 2.0),
-                ("Deneb", "Deneb", "Major Star", 2.0),
-                ("Markab", "Markab", "Major Star", 2.0),
+                # 4 Royal Watchers
+                ("Aldebaran", 69.7892, "Royal Star", 5.0),       # ~9°47' Gemini
+                ("Regulus", 149.8331, "Royal Star", 5.0),        # ~29°50' Leo
+                ("Antares", 249.7644, "Royal Star", 5.0),        # ~9°46' Sagittarius
+                ("Fomalhaut", 333.8694, "Royal Star", 5.0),      # ~3°52' Pisces
+
+                # Major Behenian Stars
+                ("Algol", 56.1703, "Behenian Star", 3.0),        # ~26°10' Taurus
+                ("Alcyone (Pleiades)", 59.9989, "Behenian Star", 2.5), # ~0°00' Gemini
+                ("Sirius", 104.0894, "Behenian Star", 3.5),      # ~14°05' Cancer
+                ("Procyon", 115.8031, "Behenian Star", 2.5),     # ~25°48' Cancer
+                ("Spica", 203.8436, "Behenian Star", 3.0),       # ~23°50' Libra
+                ("Arcturus", 204.2389, "Behenian Star", 3.0),    # ~24°14' Libra
+                ("Vega", 285.3183, "Behenian Star", 3.0),        # ~15°19' Capricorn
+                ("Altair", 301.7828, "Behenian Star", 2.5),      # ~1°47' Aquarius
+                ("Deneb Algedi", 323.5517, "Behenian Star", 2.5),# ~23°33' Aquarius
+                ("Alkaid (Benetnasch)", 177.0133, "Behenian Star", 2.0), # ~27°01' Virgo
+                ("Alphecca", 222.2858, "Behenian Star", 2.0),    # ~12°17' Scorpio
+
+                # Additional Major Stars
+                ("Betelgeuse", 88.7561, "Major Star", 2.5),      # ~28°45' Gemini
+                ("Rigel", 76.8328, "Major Star", 2.5),           # ~16°50' Gemini
+                ("Bellatrix", 80.9547, "Major Star", 2.0),       # ~20°57' Gemini
+                ("Castor", 110.2458, "Major Star", 2.0),         # ~20°15' Cancer
+                ("Pollux", 113.2208, "Major Star", 2.0),         # ~23°13' Cancer
+                ("Deneb", 335.3331, "Major Star", 2.0),          # ~5°20' Pisces
+                ("Markab", 353.4869, "Major Star", 2.0),         # ~23°29' Pisces
             ]
+
+            # Decimal years from J2000.0
+            years_from_j2000 = (dt_utc.year - 2000) + (dt_utc.timetuple().tm_yday - 1) / 365.25
 
             stars_to_scan = []
             for item in CATALOG_STARS:
@@ -244,9 +250,85 @@ class ChartService:
                     continue
                 stars_to_scan.append(item)
 
+            # Targets: Planets, TrueNode, ASC, MC
             target_bodies = {p_name: p_data["lon"] for p_name, p_data in planets.items()}
             target_bodies["ASC"] = asc
             target_bodies["MC"] = mc
+
+            for display_name, j2000_lon, category, cosmic_orb in stars_to_scan:
+                # Precess tropical longitude to birth epoch
+                s_lon = (j2000_lon + (years_from_j2000 * 0.0139697)) % 360
+                max_orb = 1.25 if star_method == "STELLA_PARTILE" else cosmic_orb
+
+                for body_name, b_lon in target_bodies.items():
+                    diff = abs(s_lon - b_lon)
+                    if diff > 180:
+                        diff = 360 - diff
+
+                    if diff <= max_orb:
+                        s_sign, s_deg, _ = deg_to_signpos(s_lon)
+                        deg_int = int(s_deg)
+                        min_int = int(round((s_deg - deg_int) * 60))
+                        if min_int >= 60:
+                            deg_int += 1
+                            min_int = 0
+
+                        orb_deg = int(diff)
+                        orb_min = int(round((diff - orb_deg) * 60))
+                        if orb_min >= 60:
+                            orb_deg += 1
+                            orb_min = 0
+
+                        fixed_star_conjunctions.append({
+                            "star": display_name,
+                            "category": category,
+                            "star_lon": round(s_lon, 4),
+                            "star_sign": s_sign,
+                            "star_deg": f"{deg_int}°{min_int:02d}'",
+                            "body": body_name,
+                            "body_lon": round(b_lon, 4),
+                            "orb": round(diff, 4),
+                            "orb_formatted": f"{orb_deg}°{orb_min:02d}'"
+                        })
+
+            # ---------------------------------------------------------
+            # SAGITTARIUS A* (GALACTIC CENTER)
+            # ---------------------------------------------------------
+            if star_scope in ["MAJOR_GC", "ALL", "MAJOR"]:
+                # J2000 position: ~266.9533° (26°57'12" Sagittarius)
+                gc_lon = (266.9533 + (years_from_j2000 * 0.0139697)) % 360
+                gc_max_orb = 1.25 if star_method == "STELLA_PARTILE" else 3.0
+
+                for body_name, b_lon in target_bodies.items():
+                    diff = abs(gc_lon - b_lon)
+                    if diff > 180:
+                        diff = 360 - diff
+
+                    if diff <= gc_max_orb:
+                        s_sign, s_deg, _ = deg_to_signpos(gc_lon)
+                        deg_int = int(s_deg)
+                        min_int = int(round((s_deg - deg_int) * 60))
+                        if min_int >= 60:
+                            deg_int += 1
+                            min_int = 0
+
+                        orb_deg = int(diff)
+                        orb_min = int(round((diff - orb_deg) * 60))
+                        if orb_min >= 60:
+                            orb_deg += 1
+                            orb_min = 0
+
+                        fixed_star_conjunctions.append({
+                            "star": "Sagittarius A* (Galactic Center)",
+                            "category": "Cosmic Point",
+                            "star_lon": round(gc_lon, 4),
+                            "star_sign": s_sign,
+                            "star_deg": f"{deg_int}°{min_int:02d}'",
+                            "body": body_name,
+                            "body_lon": round(b_lon, 4),
+                            "orb": round(diff, 4),
+                            "orb_formatted": f"{orb_deg}°{orb_min:02d}'"
+                        })
 
             for star_query, display_name, category, cosmic_orb in stars_to_scan:
                 s_lon = None
