@@ -90,7 +90,7 @@ class NatalChartResponse(BaseModel):
     aspects: List[Aspect] = Field(..., description="Major aspects")
     moon_phase: MoonPhase = Field(..., description="Moon phase")
     sect: str = Field(..., description="Chart sect (DAY/NIGHT)")
-    asteroids: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Calculated asteroid positions")
+    asteroids: Optional[Dict[str, Any]] = None
 
 
 class SVGRequest(BaseModel):
