@@ -203,7 +203,13 @@ class ChartService:
                     else:
                         target_id = AST_OFFSET + ast_num
 
-                    res, _ = swe_calc.calc_ut(tjd_ut, target_id, swe_calc.FLG_SWIEPH | swe_calc.FLG_SPEED)
+# Try high-precision Swiss Ephemeris file first
+                    try:
+                        res, _ = swe_calc.calc_ut(tjd_ut, target_id, swe_calc.FLG_SWIEPH | swe_calc.FLG_SPEED)
+                    except Exception:
+                        # Fallback: calculate using internal orbital elements without crashing
+                        res, _ = swe_calc.calc_ut(tjd_ut, target_id, swe_calc.FLG_MOSEPH | swe_calc.FLG_SPEED)
+
                     lon = float(res[0])
                     retro = bool(res[3] < 0)
 
