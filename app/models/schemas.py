@@ -11,10 +11,6 @@ class GeoLocation(BaseModel):
     elevation_m: Optional[float] = 0.0
 
 
-from typing import List, Optional, Any
-from pydantic import BaseModel, Field, validator
-from datetime import datetime
-
 class NatalChartRequest(BaseModel):
     """Request model for natal chart calculation."""
     datetime_local: str
@@ -27,7 +23,7 @@ class NatalChartRequest(BaseModel):
     )
     asteroids: Optional[List[int]] = []
     star_scope: Optional[str] = "MAJOR_GC"
-    star_method: Optional[str] = "COSMIC_ASCENDANCE"  # Must allow str
+    star_method: Optional[str] = "COSMIC_ASCENDANCE"
 
     @validator("datetime_local")
     def validate_datetime(cls, v):
@@ -77,6 +73,7 @@ class ChartLocation(BaseModel):
     lon: float = Field(..., description="Longitude")
     tz: str = Field(..., description="Timezone")
 
+
 class FixedStarConjunction(BaseModel):
     star: str
     category: str
@@ -87,8 +84,8 @@ class FixedStarConjunction(BaseModel):
     body_lon: float
     orb: float
     orb_formatted: str
-    star_method: Optional[str] = "COSMIC_ASCENDANCE" # or "STRICT_ORB"
-    star_filter: Optional[str] = "ALL"              # "ROYAL", "BEHENIAN", "DEEP_SPACE"
+    star_method: Optional[str] = "COSMIC_ASCENDANCE"
+    star_filter: Optional[str] = "ALL"
 
 
 class NatalChartResponse(BaseModel):
@@ -181,6 +178,7 @@ class TransitHit(BaseModel):
     is_retrograde: bool = Field(..., description="Is retrograde")
     is_combust: bool = Field(..., description="Is combust")
     natal_house: int = Field(..., description="Natal house")
+
 
 class ForecastResponse(BaseModel):
     """Response model for transit forecast."""
