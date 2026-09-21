@@ -35,7 +35,7 @@ class ChartService:
             SWISS_FLAGS = swe.FLG_MOSEPH | swe.FLG_SPEED
             HAVE_SWE_FILES = False
 
-    def compute_natal_chart(self, request: NatalChartRequest) -> NatalChartResponse:
+def _compute_natal_chart(self, dt_local: datetime, lat: float, lon_east: float, tz_name: str, -> NatalChartResponse:
         """Compute a natal chart from the request."""
         dt_local = datetime.fromisoformat(request.datetime_local)
         if dt_local.tzinfo is None:
@@ -43,49 +43,32 @@ class ChartService:
 
         dt_utc = dt_local.astimezone(tz.UTC)
         requested_asteroids = getattr(request, "asteroids", []) or []
+        star_scope = getattr(request, "star_scope", "MAJOR_GC") or "MAJOR_GC"
+        star_method = getattr(request, "star_method", "STELLA_PARTILE") or "STELLA_PARTILE"
 
         chart_data = self._compute_natal_chart(
             dt_local,
             request.location.lat,
             request.location.lon,
             request.timezone,
-            house_system=request.house_system,
+            house_system: str = "WHOLE", asteroids: Optional[List[int]] = None,
             asteroids=requested_asteroids,
-            swe_path=self.swe_path
+            swe_path: str = None, star_scope: str = "MAJOR_GC",
+            star_scope=star_scope,
+            star_method: str = "STELLA_PARTILE") -> Dict:
         )
 
         return NatalChartResponse(
             datetime_utc=chart_data["datetime_utc"],
-            location={
-                "lat": chart_data["location"]["lat"],
-                "lon": chart_data["location"]["lon"],
-                "tz": chart_data["location"]["tz"]
-            },
-            angles={
-                "ASC": chart_data["angles"]["ASC"],
-                "DS": chart_data["angles"]["DS"],
-                "MC": chart_data["angles"]["MC"],
-                "IC": chart_data["angles"]["IC"]
-            },
+            location=chart_data["location"],
+            angles=chart_data["angles"],
             houses=chart_data["houses"],
             house_system=chart_data["house_system"],
-            planets={
-                name: {
-                    "lon": planet["lon"],
-                    "sign": planet["sign"],
-                    "deg": planet["deg"],
-                    "house": planet["house"],
-                    "retro": planet["retro"]
-                }
-                for name, planet in chart_data["planets"].items()
-            },
+            planets=chart_data["planets"],
             asteroids=chart_data.get("asteroids", {}),
             fixed_stars=chart_data.get("fixed_stars", []),
             aspects=chart_data["aspects"],
-            moon_phase={
-                "name": chart_data["moon_phase"]["name"],
-                "angle": chart_data["moon_phase"]["angle"]
-            },
+            moon_phase=chart_data["moon_phase"],
             sect=chart_data["sect"]
         )
 
@@ -226,74 +209,147 @@ class ChartService:
         # FIXED STARS & SAGITTARIUS A* (GALACTIC CENTER)
         # -------------------------------------------------------------
         fixed_star_conjunctions = []
-        if HAVE_SWE:
+
+        if HAVE_SWE and star_scope != "NONE" and star_method != "NONE":
             import swisseph as swe_calc
 
-            # Curated catalog: (Name, Category, Base Max Orb for Cosmic Ascendance)
-            STAR_CATALOG = [
-                # The 4 Royal Stars
-                ("Aldebaran", "Royal Star", 5.0),
-                ("Regulus", "Royal Star", 5.0),
-                ("Antares", "Royal Star", 5.0),
-                ("Fomalhaut", "Royal Star", 5.0),
-                
+            # Star Database: (SwissEph Query Name, Display Name, Category, Cosmic Ascendance Max Orb)
+            CATALOG_STARS = [
+                # 4 Royal Watchers
+                ("Aldebaran", "Aldebaran", "Royal Star", 5.0),
+                ("Regulus", "Regulus", "Royal Star", 5.0),
+                ("Antares", "Antares", "Royal Star", 5.0),
+                ("Fomalhaut", "Fomalhaut", "Royal Star", 5.0),
+
                 # Major Behenian Stars
-                ("Algol", "Behenian Star", 3.0),
-                ("Alcyone", "Behenian Star (Pleiades)", 2.5),
-                ("Aldebaran", "Behenian Star", 3.0),
-                ("Sirius", "Behenian Star", 3.0),
-                ("Procyon", "Behenian Star", 2.5),
-                ("Regulus", "Behenian Star", 3.0),
-                ("Spica", "Behenian Star", 3.0),
-                ("Arcturus", "Behenian Star", 3.0),
-                ("Vega", "Behenian Star", 3.0),
-                ("Altair", "Behenian Star", 2.5),
-                ("Deneb Algedi", "Behenian Star", 2.5),
-                
-                # Deep Space / Cosmic
-                (",Galactic Center", "Cosmic Point", 2.5),
+                ("Algol", "Algol", "Behenian Star", 3.0),
+                ("Alcyone", "Alcyone (Pleiades)", "Behenian Star", 2.5),
+                ("Sirius", "Sirius", "Behenian Star", 3.5),
+                ("Procyon", "Procyon", "Behenian Star", 2.5),
+                ("Spica", "Spica", "Behenian Star", 3.0),
+                ("Arcturus", "Arcturus", "Behenian Star", 3.0),
+                ("Vega", "Vega", "Behenian Star", 3.0),
+                ("Altair", "Altair", "Behenian Star", 2.5),
+                ("Deneb Algedi", "Deneb Algedi", "Behenian Star", 2.5),
+                ("Benetnasch", "Alkaid (Benetnasch)", "Behenian Star", 2.0),
+                ("Alphecca", "Alphecca", "Behenian Star", 2.0),
+
+                # Additional Major Stars
+                ("Betelgeuse", "Betelgeuse", "Major Star", 2.5),
+                ("Rigel", "Rigel", "Major Star", 2.5),
+                ("Bellatrix", "Bellatrix", "Major Star", 2.0),
+                ("Castor", "Castor", "Major Star", 2.0),
+                ("Pollux", "Pollux", "Major Star", 2.0),
+                ("Deneb", "Deneb", "Major Star", 2.0),
+                ("Markab", "Markab", "Major Star", 2.0),
             ]
 
-            # Collect bodies to test for conjunctions (planets, angles, nodes)
-            target_bodies = {}
-            for p_name, p_data in planets.items():
-                target_bodies[p_name] = p_data["lon"]
+            stars_to_scan = []
+            for item in CATALOG_STARS:
+                cat = item[2]
+                if star_scope == "ROYAL_BEHENIAN" and cat not in ["Royal Star", "Behenian Star"]:
+                    continue
+                stars_to_scan.append(item)
+
+            hour_decimal = dt_utc.hour + dt_utc.minute / 60.0 + dt_utc.second / 3600.0
+            tjd_ut = swe_calc.julday(dt_utc.year, dt_utc.month, dt_utc.day, hour_decimal)
+
+            # Targets: Planets, ASC, MC
+            target_bodies = {p_name: p_data["lon"] for p_name, p_data in planets.items()}
             target_bodies["ASC"] = asc
             target_bodies["MC"] = mc
 
-            for star_name, category, max_allowed_orb in STAR_CATALOG:
+            for star_query, display_name, category, cosmic_orb in stars_to_scan:
+                s_lon = None
                 try:
-                    star_res, _ = swe_calc.fixstar2_ut(star_name, tjd_ut, swe_calc.FLG_SWIEPH)
-                    s_lon = float(star_res[0])
-                    display_name = "Sagittarius A* (Galactic Center)" if "Galactic" in star_name else star_name.lstrip(",")
+                    # Look up star coordinates
+                    res, _ = swe_calc.fixstar2_ut(star_query, tjd_ut, swe_calc.FLG_SWIEPH)
+                    s_lon = float(res[0])
+                except Exception as e:
+                    # If file-based lookup fails, try moseph fallback flag
+                    try:
+                        res, _ = swe_calc.fixstar2_ut(star_query, tjd_ut, swe_calc.FLG_MOSEPH)
+                        s_lon = float(res[0])
+                    except Exception as e2:
+                        pass
 
-                    # Check conjunction against each planet/angle
-                    for body_name, b_lon in target_bodies.items():
-                        diff = abs(s_lon - b_lon)
-                        if diff > 180:
-                            diff = 360 - diff
-
-                        # If using Cosmic Ascendance, use tiered max_allowed_orb; 
-                        # If strict orb, you could enforce diff <= 1.5
-                        if diff <= max_allowed_orb:
-                            s_sign, s_deg, _ = deg_to_signpos(s_lon)
-                            deg_int = int(diff)
-                            min_int = int(round((diff - deg_int) * 60))
-                            
-                            fixed_star_conjunctions.append({
-                                "star": display_name,
-                                "category": category,
-                                "star_lon": s_lon,
-                                "star_sign": s_sign,
-                                "star_deg": f"{int(s_deg)}°{int(round((s_deg - int(s_deg))*60)):02d}'",
-                                "body": body_name,
-                                "body_lon": b_lon,
-                                "orb": round(diff, 4),
-                                "orb_formatted": f"{deg_int}°{min_int:02d}'",
-                            })
-                except Exception as star_err:
-                    # If an individual star lookup fails, skip quietly
+                if s_lon is None:
                     continue
+
+                max_orb = 1.25 if star_method == "STELLA_PARTILE" else cosmic_orb
+
+                for body_name, b_lon in target_bodies.items():
+                    diff = abs(s_lon - b_lon)
+                    if diff > 180:
+                        diff = 360 - diff
+
+                    if diff <= max_orb:
+                        s_sign, s_deg, _ = deg_to_signpos(s_lon)
+                        deg_int = int(s_deg)
+                        min_int = int(round((s_deg - deg_int) * 60))
+                        if min_int >= 60:
+                            deg_int += 1
+                            min_int = 0
+
+                        orb_deg = int(diff)
+                        orb_min = int(round((diff - orb_deg) * 60))
+                        if orb_min >= 60:
+                            orb_deg += 1
+                            orb_min = 0
+
+                        fixed_star_conjunctions.append({
+                            "star": display_name,
+                            "category": category,
+                            "star_lon": round(s_lon, 4),
+                            "star_sign": s_sign,
+                            "star_deg": f"{deg_int}°{min_int:02d}'",
+                            "body": body_name,
+                            "body_lon": round(b_lon, 4),
+                            "orb": round(diff, 4),
+                            "orb_formatted": f"{orb_deg}°{orb_min:02d}'"
+                        })
+
+            # ---------------------------------------------------------
+            # SAGITTARIUS A* (GALACTIC CENTER)
+            # ---------------------------------------------------------
+            if star_scope in ["MAJOR_GC", "ALL"]:
+                # Astronomical J2000 coordinates for Sgr A*: 266.9533° (~26°57'12" Sag)
+                # Precesses at ~50.29 arcseconds/year (0.013969°/year)
+                years_from_j2000 = (tjd_ut - 2451545.0) / 365.25
+                gc_lon = (266.9533 + (years_from_j2000 * 0.013969)) % 360
+
+                gc_max_orb = 1.25 if star_method == "STELLA_PARTILE" else 3.0
+
+                for body_name, b_lon in target_bodies.items():
+                    diff = abs(gc_lon - b_lon)
+                    if diff > 180:
+                        diff = 360 - diff
+
+                    if diff <= gc_max_orb:
+                        s_sign, s_deg, _ = deg_to_signpos(gc_lon)
+                        deg_int = int(s_deg)
+                        min_int = int(round((s_deg - deg_int) * 60))
+                        if min_int >= 60:
+                            deg_int += 1
+                            min_int = 0
+
+                        orb_deg = int(diff)
+                        orb_min = int(round((diff - orb_deg) * 60))
+                        if orb_min >= 60:
+                            orb_deg += 1
+                            orb_min = 0
+
+                        fixed_star_conjunctions.append({
+                            "star": "Sagittarius A* (Galactic Center)",
+                            "category": "Cosmic Point",
+                            "star_lon": round(gc_lon, 4),
+                            "star_sign": s_sign,
+                            "star_deg": f"{deg_int}°{min_int:02d}'",
+                            "body": body_name,
+                            "body_lon": round(b_lon, 4),
+                            "orb": round(diff, 4),
+                            "orb_formatted": f"{orb_deg}°{orb_min:02d}'"
+                        })
 
         return {
             "datetime_utc": dt_utc.isoformat(),
