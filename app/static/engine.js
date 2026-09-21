@@ -248,6 +248,26 @@
     return 1;
   }
 
+  function snGetHouseSystemName(code) {
+    var map = {
+      "PLACIDUS": "Placidus",
+      "WHOLE": "Whole Sign",
+      "KOCH": "Koch",
+      "REGIOMONTANUS": "Regiomontanus",
+      "CAMPANUS": "Campanus",
+      "PORPHYRY": "Porphyry",
+      "EQUAL": "Equal House"
+    };
+    return map[code] || code;
+  }
+
+  function snFormatDualHouseBadge(h1Num, h1Name, h2Num, h2Name) {
+    if (h2Num && h2Name) {
+      return ' <span style="color:#94a3b8; font-size:0.8rem;">(House ' + h1Num + ' [' + h1Name + '] / House ' + h2Num + ' [' + h2Name + '])</span>';
+    }
+    return ' <span style="color:#94a3b8; font-size:0.8rem;">(House ' + h1Num + ' [' + h1Name + '])</span>';
+  }
+
   function snFindAspects(bodies, mode) {
     var asps = [
       { name: "Conjunction", angle: 0, orb: 8 },
@@ -304,6 +324,9 @@
     var aspStyle = document.getElementById('sn-aspect-style').value;
     var ayan = parseFloat(document.getElementById('sn-ayanamsa').value) || 0;
 
+    var h1Label = snGetHouseSystemName(h1);
+    var h2Label = (h2 !== "NONE" && h2 !== h1) ? snGetHouseSystemName(h2) : null;
+
     var loading = document.getElementById('sn-loading');
     var disp = document.getElementById('sn-display-card');
     var out = document.getElementById('sn-output-card');
@@ -343,10 +366,11 @@
       });
       if (!res1.ok) throw new Error("Primary API error: " + res1.status);
       var d1 = await res1.json();
+      console.log("Supernova Engine API Response:", d1);
 
-      // 2. Fetch Secondary System (if selected)
+      // 2. Fetch Secondary System
       var d2Cusps = null;
-      if (h2 !== "NONE" && h2 !== h1) {
+      if (h2Label) {
         var req2 = Object.assign({}, baseReq, { house_system: h2 });
         var res2 = await fetch('https://supernova-calc-engine.onrender.com/api/v1/natal', {
           method: 'POST',
@@ -361,11 +385,11 @@
 
       var raw = "";
       raw += "Zodiac System:    " + zod + (zod === 'SIDEREAL' ? " (Ayanamsa " + ayan + ")" : "") + "\n";
-      raw += "Primary System:   " + h1 + "\n";
-      if (d2Cusps) raw += "Secondary System: " + h2 + "\n";
+      raw += "Primary System:   " + h1Label + "\n";
+      if (h2Label) raw += "Secondary System: " + h2Label + "\n";
       raw += "----------------------------------------------------------------------\n";
-      raw += snPad("Body / Point", 16) + snPad("Longitude", 18) + snPad("H (" + h1.substr(0,4) + ")", 12);
-      if (d2Cusps) raw += snPad("H (" + h2.substr(0,4) + ")", 12);
+      raw += snPad("Body / Point", 16) + snPad("Longitude", 18) + snPad("H (" + h1Label.substr(0,4) + ")", 12);
+      if (h2Label) raw += snPad("H (" + h2Label.substr(0,4) + ")", 12);
       raw += "\n----------------------------------------------------------------------\n";
 
       var angHtml = "";
@@ -374,7 +398,7 @@
       var hseHtml = "";
       var aspBodies = {};
 
-      // 1. ALL FOUR ANGLES (ASC, DS, MC, IC)
+      // 1. ALL FOUR ANGLES
       if (d1.angles) {
         var ascDeg = window.snAdjustToZodiac(d1.angles.ASC, zod, ayan);
         var dsDeg = window.snAdjustToZodiac(d1.angles.DS, zod, ayan);
@@ -386,16 +410,16 @@
         angHtml += '<div><strong>Midheaven (MC):</strong> ' + window.snFormatZodiac(mcDeg) + '</div>';
         angHtml += '<div><strong>Imum Coeli (IC):</strong> ' + window.snFormatZodiac(icDeg) + '</div>';
 
-        raw += snPad("Ascendant", 16) + snPad(window.snFormatZodiac(ascDeg), 18) + snPad("House 1", 12) + (d2Cusps ? snPad("House 1", 12) : "") + "\n";
-        raw += snPad("Descendant", 16) + snPad(window.snFormatZodiac(dsDeg), 18) + snPad("House 7", 12) + (d2Cusps ? snPad("House 7", 12) : "") + "\n";
-        raw += snPad("Midheaven", 16) + snPad(window.snFormatZodiac(mcDeg), 18) + snPad("House 10", 12) + (d2Cusps ? snPad("House 10", 12) : "") + "\n";
-        raw += snPad("Imum Coeli", 16) + snPad(window.snFormatZodiac(icDeg), 18) + snPad("House 4", 12) + (d2Cusps ? snPad("House 4", 12) : "") + "\n";
+        raw += snPad("Ascendant", 16) + snPad(window.snFormatZodiac(ascDeg), 18) + snPad("House 1", 12) + (h2Label ? snPad("House 1", 12) : "") + "\n";
+        raw += snPad("Descendant", 16) + snPad(window.snFormatZodiac(dsDeg), 18) + snPad("House 7", 12) + (h2Label ? snPad("House 7", 12) : "") + "\n";
+        raw += snPad("Midheaven", 16) + snPad(window.snFormatZodiac(mcDeg), 18) + snPad("House 10", 12) + (h2Label ? snPad("House 10", 12) : "") + "\n";
+        raw += snPad("Imum Coeli", 16) + snPad(window.snFormatZodiac(icDeg), 18) + snPad("House 4", 12) + (h2Label ? snPad("House 4", 12) : "") + "\n";
 
         aspBodies["Ascendant"] = ascDeg;
         aspBodies["Midheaven"] = mcDeg;
       }
 
-      // 2. PLANETS + BOTH NORTH AND SOUTH NODES
+      // 2. PLANETARY BODIES + NODES
       if (d1.planets) {
         for (var pName in d1.planets) {
           var pLon = window.snAdjustToZodiac(d1.planets[pName].lon, zod, ayan);
@@ -403,27 +427,27 @@
           var ph1 = snDetermineHouse(pLon, d1.houses);
           var ph2 = d2Cusps ? snDetermineHouse(pLon, d2Cusps) : null;
 
-          var dualTag = d2Cusps ? (' <span style="color:#94a3b8; font-size:0.75rem;">(H' + ph1 + ' / H' + ph2 + ')</span>') : (' <span style="color:#94a3b8; font-size:0.75rem;">(H' + ph1 + ')</span>');
+          var dualTag = snFormatDualHouseBadge(ph1, h1Label, ph2, h2Label);
           var retroBadge = d1.planets[pName].retro ? ' <span style="color:#f87171; font-weight:bold;">(R)</span>' : '';
 
           raw += snPad(pName, 16) + snPad(window.snFormatZodiac(pLon) + retro, 18) + snPad("House " + ph1, 12);
-          if (d2Cusps) raw += snPad("House " + ph2, 12);
+          if (h2Label) raw += snPad("House " + ph2, 12);
           raw += "\n";
 
           plaHtml += '<div><strong>' + pName + ':</strong> ' + window.snFormatZodiac(pLon) + retroBadge + dualTag + '</div>';
           aspBodies[pName] = pLon;
 
-          // If TrueNode or NorthNode, render True North Node AND South Node explicitly
+          // True Node and South Node
           if (pName === "TrueNode" || pName === "NorthNode") {
             var snLon = (pLon + 180) % 360;
             var snh1 = snDetermineHouse(snLon, d1.houses);
             var snh2 = d2Cusps ? snDetermineHouse(snLon, d2Cusps) : null;
 
             raw += snPad("SouthNode", 16) + snPad(window.snFormatZodiac(snLon) + retro, 18) + snPad("House " + snh1, 12);
-            if (d2Cusps) raw += snPad("House " + snh2, 12);
+            if (h2Label) raw += snPad("House " + snh2, 12);
             raw += "\n";
 
-            var snTag = d2Cusps ? (' <span style="color:#94a3b8; font-size:0.75rem;">(H' + snh1 + ' / H' + snh2 + ')</span>') : (' <span style="color:#94a3b8; font-size:0.75rem;">(H' + snh1 + ')</span>');
+            var snTag = snFormatDualHouseBadge(snh1, h1Label, snh2, h2Label);
             angHtml += '<div><strong>South Node:</strong> ' + window.snFormatZodiac(snLon) + retroBadge + snTag + '</div>';
             aspBodies["SouthNode"] = snLon;
           }
@@ -447,29 +471,33 @@
           var ah2 = d2Cusps ? snDetermineHouse(aLon, d2Cusps) : null;
 
           raw += snPad(aName, 16) + snPad(window.snFormatZodiac(aLon) + aRetro, 18) + snPad("House " + ah1, 12);
-          if (d2Cusps) raw += snPad("House " + ah2, 12);
+          if (h2Label) raw += snPad("House " + ah2, 12);
           raw += "\n";
 
           var aBadge = aObj.retro ? ' <span style="color:#f87171; font-weight:bold;">(R)</span>' : '';
-          var aTag = d2Cusps ? (' <span style="color:#94a3b8; font-size:0.75rem;">(H' + ah1 + ' / H' + ah2 + ')</span>') : (' <span style="color:#94a3b8; font-size:0.75rem;">(H' + ah1 + ')</span>');
+          var aTag = snFormatDualHouseBadge(ah1, h1Label, ah2, h2Label);
           astHtml += '<div><strong>' + aName + ':</strong> ' + window.snFormatZodiac(aLon) + aBadge + aTag + '</div>';
           aspBodies[aName] = aLon;
         }
       }
       document.getElementById('sn-display-asteroids').innerHTML = astHtml || '<span style="color:#64748b;">None calculated</span>';
 
-      // 4. DUAL HOUSE CUSPS DISPLAY (PRIMARY & SECONDARY COMPARISON)
+      // 4. SEPARATE STACKED HOUSE CUSPS
+      // Primary House Cusps Block
       if (Array.isArray(d1.houses)) {
-        hseHtml += '<div style="color:#2dd4bf; font-weight:bold; margin-bottom:4px;">' + h1 + (d2Cusps ? (' vs ' + h2) : '') + '</div>';
+        hseHtml += '<div style="color:#2dd4bf; font-weight:bold; margin-bottom:6px; font-size:0.9rem;">House Cusps (' + h1Label + ')</div>';
         d1.houses.forEach(function(hDeg, idx) {
           var sh1 = window.snAdjustToZodiac(hDeg, zod, ayan);
-          var line = '<div><strong>House ' + (idx + 1) + ':</strong> ' + window.snFormatZodiac(sh1);
-          if (d2Cusps && d2Cusps[idx] !== undefined) {
-            var sh2 = window.snAdjustToZodiac(d2Cusps[idx], zod, ayan);
-            line += ' <span style="color:#94a3b8; font-size:0.8rem;">(' + window.snFormatZodiac(sh2) + ')</span>';
-          }
-          line += '</div>';
-          hseHtml += line;
+          hseHtml += '<div>House ' + (idx + 1) + ': ' + window.snFormatZodiac(sh1) + '</div>';
+        });
+      }
+
+      // Secondary House Cusps Block (Stacked cleanly below)
+      if (d2Cusps && Array.isArray(d2Cusps)) {
+        hseHtml += '<div style="color:#2dd4bf; font-weight:bold; margin-top:16px; margin-bottom:6px; font-size:0.9rem;">House Cusps (' + h2Label + ')</div>';
+        d2Cusps.forEach(function(hDeg, idx) {
+          var sh2 = window.snAdjustToZodiac(hDeg, zod, ayan);
+          hseHtml += '<div>House ' + (idx + 1) + ': ' + window.snFormatZodiac(sh2) + '</div>';
         });
       }
 
