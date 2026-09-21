@@ -89,12 +89,10 @@ def compute_natal_chart(
 
         return result
     except Exception as e:
-        error_data = {
-            "request": request.model_dump(),
-            "error": str(e),
-            "timestamp": datetime.now().isoformat()
-        }
-        save_debug_output("natal_chart_error", error_data)
+        import traceback
+        print("=== COMPUTE NATAL CHART ERROR TRACEBACK ===")
+        print(traceback.format_exc())
+        print("============================================")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to compute natal chart: {str(e)}"
