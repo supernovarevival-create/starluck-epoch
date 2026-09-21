@@ -34,7 +34,7 @@ class ChartService:
             SWISS_FLAGS = swe.FLG_MOSEPH | swe.FLG_SPEED
             HAVE_SWE_FILES = False
 
-    def compute_natal_chart(self, request: NatalChartRequest) -> NatalChartResponse:
+def compute_natal_chart(self, request: NatalChartRequest) -> NatalChartResponse:
         """Compute a natal chart from the request."""
         dt_local = datetime.fromisoformat(request.datetime_local)
         if dt_local.tzinfo is None:
@@ -43,8 +43,15 @@ class ChartService:
         dt_utc = dt_local.astimezone(tz.UTC)
         requested_asteroids = getattr(request, "asteroids", []) or []
         star_scope = getattr(request, "star_scope", "MAJOR_GC") or "MAJOR_GC"
-        raw_star_method = getattr(request, "star_method", "STELLA_PARTILE") or "STELLA_PARTILE"
-        star_method = "COSMIC_ASCENDANCE" if "COSMIC" in str(raw_star_method).upper() else "STELLA_PARTILE"
+        
+        # Robust string detection: checks if "COSMIC" appears anywhere in the request string
+        raw_method = str(getattr(request, "star_method", "") or "").upper()
+        if "COSMIC" in raw_method:
+            star_method = "COSMIC_ASCENDANCE"
+        elif "NONE" in raw_method:
+            star_method = "NONE"
+        else:
+            star_method = "STELLA_PARTILE"
 
         chart_data = self._compute_natal_chart(
             dt_local,
@@ -340,6 +347,7 @@ class ChartService:
                 s_lon = (j2000_lon + (years_from_j2000 * 0.0139697)) % 360
 
                 # Cosmic Ascendance Tiers: Royal=5.0°, Behenian=3.0°, Major=1.5°
+                # Force boolean check directly
                 if is_cosmic:
                     if category == "Royal Star":
                         max_orb = 5.0
