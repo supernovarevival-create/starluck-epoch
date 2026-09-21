@@ -277,7 +277,7 @@ for a_id, a_data in calculated_asteroids.items():
                 s_lon = (j2000_lon + (years_from_j2000 * 0.0139697)) % 360
                 max_orb = 1.25 if star_method == "STELLA_PARTILE" else cosmic_orb
 
-            for body_name, b_lon in target_bodies.items():
+    for body_name, b_lon in target_bodies.items():
                     diff = abs(s_lon - b_lon)
                 if diff > 180:
                         diff = 360 - diff
