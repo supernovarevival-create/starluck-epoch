@@ -253,50 +253,49 @@ class ChartService:
                     continue
                 stars_to_scan.append(item)
 
-# Targets: Planets, Nodes, Angles, Part of Fortune, & Asteroids
-target_bodies = {p_name: p_data["lon"] for p_name, p_data in planets.items()}
-target_bodies["ASC"] = asc
-target_bodies["MC"] = mc
+            # Targets: Planets, Nodes, Angles, Part of Fortune, & Asteroids
+            target_bodies = {p_name: p_data["lon"] for p_name, p_data in planets.items()}
+            target_bodies["ASC"] = asc
+            target_bodies["MC"] = mc
 
-# Add South Node
-if "TrueNode" in planets:
-    target_bodies["SouthNode"] = (planets["TrueNode"]["lon"] + 180) % 360
-elif "NorthNode" in planets:
-    target_bodies["SouthNode"] = (planets["NorthNode"]["lon"] + 180) % 360
+            # Add South Node
+            if "TrueNode" in planets:
+                target_bodies["SouthNode"] = (planets["TrueNode"]["lon"] + 180) % 360
+            elif "NorthNode" in planets:
+                target_bodies["SouthNode"] = (planets["NorthNode"]["lon"] + 180) % 360
 
-# Add Part of Fortune
-if "PartOfFortune" in planets:
-    target_bodies["PartOfFortune"] = planets["PartOfFortune"]["lon"]
+            # Add Part of Fortune
+            if "PartOfFortune" in planets:
+                target_bodies["PartOfFortune"] = planets["PartOfFortune"]["lon"]
 
-# Add Asteroids to fixed star conjunction checks
-for a_id, a_data in calculated_asteroids.items():
-    # Look up asteroid name if possible or use ID
-    target_bodies[f"Asteroid_{a_id}"] = a_data["lon"]
+            # Add Asteroids to fixed star conjunction checks
+            for a_id, a_data in calculated_asteroids.items():
+                target_bodies[f"Asteroid_{a_id}"] = a_data["lon"]
 
-    for display_name, j2000_lon, category, cosmic_orb in stars_to_scan:
+            for display_name, j2000_lon, category, cosmic_orb in stars_to_scan:
                 s_lon = (j2000_lon + (years_from_j2000 * 0.0139697)) % 360
                 max_orb = 1.25 if star_method == "STELLA_PARTILE" else cosmic_orb
 
-    for body_name, b_lon in target_bodies.items():
+                for body_name, b_lon in target_bodies.items():
                     diff = abs(s_lon - b_lon)
-                if diff > 180:
+                    if diff > 180:
                         diff = 360 - diff
 
-                if diff <= max_orb:
+                    if diff <= max_orb:
                         s_sign, s_deg, _ = deg_to_signpos(s_lon)
                         deg_int = int(s_deg)
                         min_int = int(round((s_deg - deg_int) * 60))
-                    if min_int >= 60:
+                        if min_int >= 60:
                             deg_int += 1
                             min_int = 0
 
                         orb_deg = int(diff)
                         orb_min = int(round((diff - orb_deg) * 60))
-                    if orb_min >= 60:
+                        if orb_min >= 60:
                             orb_deg += 1
                             orb_min = 0
 
-                    fixed_star_conjunctions.append({
+                        fixed_star_conjunctions.append({
                             "star": display_name,
                             "category": category,
                             "star_lon": round(s_lon, 4),
