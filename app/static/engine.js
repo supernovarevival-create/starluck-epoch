@@ -324,6 +324,11 @@
     var aspStyle = document.getElementById('sn-aspect-style').value;
     var ayan = parseFloat(document.getElementById('sn-ayanamsa').value) || 0;
 
+    var starScopeEl = document.getElementById("sn-star-scope") || document.getElementById("Fixed Stars & Cosmic Points");
+    var starMethodEl = document.getElementById("sn-star-method") || document.getElementById("Fixed Stars & Points Calculations Method");
+    var starScope = starScopeEl ? starScopeEl.value : "MAJOR_GC";
+    var starMethod = starMethodEl ? starMethodEl.value : "STELLA_PARTILE";
+
     var h1Label = snGetHouseSystemName(h1);
     var h2Label = (h2 !== "NONE" && h2 !== h1) ? snGetHouseSystemName(h2) : null;
 
@@ -353,7 +358,9 @@
       datetime_local: formattedDT,
       timezone: tz,
       location: { lat: parseFloat(lat), lon: parseFloat(lon), elevation_m: 0 },
-      asteroids: asteroidIdList
+      asteroids: asteroidIdList,
+      star_scope: starScope,
+      star_method: starMethod
     };
 
     try {
@@ -427,7 +434,6 @@
           var retroBadge = d1.planets[pName].retro ? ' <span style="color:#f87171; font-weight:bold;">(R)</span>' : '';
           var dualTag = snFormatDualHouseBadge(ph1, h1Label, ph2, h2Label);
 
-          // If TrueNode or NorthNode, render inside ANGLES & NODES
           if (pName === "TrueNode" || pName === "NorthNode") {
             var nnLine = '<div><strong>North Node:</strong> ' + window.snFormatZodiac(pLon) + retroBadge + dualTag + '</div>';
             angHtml += nnLine;
@@ -435,7 +441,6 @@
             if (h2Label) raw += snPad("House " + ph2, 12);
             raw += "\n";
 
-            // South Node (exact 180° opposite)
             var snLon = (pLon + 180) % 360;
             var snh1 = snDetermineHouse(snLon, d1.houses);
             var snh2 = d2Cusps ? snDetermineHouse(snLon, d2Cusps) : null;
@@ -449,7 +454,6 @@
             aspBodies["NorthNode"] = pLon;
             aspBodies["SouthNode"] = snLon;
           } else {
-            // Standard Planets + Part of Fortune
             raw += snPad(pName, 16) + snPad(window.snFormatZodiac(pLon) + retro, 18) + snPad("House " + ph1, 12);
             if (h2Label) raw += snPad("House " + ph2, 12);
             raw += "\n";
@@ -488,9 +492,39 @@
           aspBodies[aName] = aLon;
         }
       }
-      document.getElementById('sn-display-asteroids').innerHTML = astHtml || '<span style="color:#64748b;">None calculated</span>';
+      var astBox = document.getElementById('sn-display-asteroids');
+      if (astBox) astBox.innerHTML = astHtml || '<span style="color:#64748b;">None calculated</span>';
 
-      // 4. STACKED HOUSE CUSPS (PRIMARY THEN SECONDARY)
+      // 4. FIXED STARS & COSMIC POINTS
+      var starsBox = document.getElementById("sn-display-stars");
+      var starsHeading = document.getElementById("sn-stars-heading");
+      var starsList = d1.fixed_stars || [];
+
+      if (starsList.length > 0 && starScope !== "NONE" && starMethod !== "NONE") {
+        raw += "\n--- Fixed Stars & Cosmic Points ---\n";
+        var starsTxt = "";
+        starsList.forEach(function(s) {
+          var starName = snPad(s.star, 24);
+          var bodyName = snPad(s.body, 14);
+          var pos = snPad(s.star_deg + " " + s.star_sign, 16);
+          starsTxt += '<div><strong>' + s.star + '</strong> [' + s.star_deg + ' ' + s.star_sign + '] <span style="color:#2dd4bf;">Conjunct</span> <strong>' + s.body + '</strong> <span style="color:#94a3b8;">(orb ' + s.orb_formatted + ')</span></div>';
+          raw += starName + " [ " + pos + " ] Conjunct " + bodyName + " (orb " + s.orb_formatted + ")\n";
+        });
+
+        if (starsHeading) starsHeading.style.display = "block";
+        if (starsBox) {
+          starsBox.innerHTML = starsTxt;
+          starsBox.style.display = "block";
+        }
+      } else {
+        if (starsHeading) starsHeading.style.display = "none";
+        if (starsBox) {
+          starsBox.innerHTML = "";
+          starsBox.style.display = "none";
+        }
+      }
+
+      // 5. STACKED HOUSE CUSPS (PRIMARY THEN SECONDARY)
       if (Array.isArray(d1.houses)) {
         hseHtml += '<div style="font-size:0.85rem; text-transform:uppercase; color:#2dd4bf; font-weight:700; margin-bottom:8px;">House Cusps (' + h1Label + ')</div>';
         d1.houses.forEach(function(hDeg, idx) {
@@ -506,63 +540,6 @@
           hseHtml += '<div>House ' + (idx + 1) + ': ' + window.snFormatZodiac(sh2) + '</div>';
         });
       }
-
-      // --- RENDER FIXED STARS & COSMIC POINTS ---
-const starsContainer = document.getElementById('sn-fixed-stars-output') || 
-                       document.getElementById('fixed-stars-container');
-
-if (starsContainer) {
-    const fixedStars = data.fixed_stars || [];
-
-    if (fixedStars.length === 0) {
-        starsContainer.innerHTML = `
-            <div class="sn-no-stars">
-                <em>No major fixed star conjunctions within active orbs.</em>
-            </div>
-        `;
-    } else {
-        let starsHtml = `
-            <div class="sn-section-header">
-                <h3>Fixed Stars & Cosmic Points</h3>
-            </div>
-            <table class="sn-placement-table">
-                <thead>
-                    <tr>
-                        <th>Star / Point</th>
-                        <th>Category</th>
-                        <th>Star Pos</th>
-                        <th>Conjunct Body</th>
-                        <th>Orb</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
-
-        fixedStars.forEach(item => {
-            // Category badges: Royal Star, Behenian Star, Cosmic Point
-            const badgeClass = item.category.toLowerCase().includes('royal') ? 'badge-royal' :
-                               item.category.toLowerCase().includes('behenian') ? 'badge-behenian' :
-                               'badge-cosmic';
-
-            starsHtml += `
-                <tr>
-                    <td><strong>${item.star}</strong></td>
-                    <td><span class="sn-badge ${badgeClass}">${item.category}</span></td>
-                    <td>${item.star_deg} ${item.star_sign}</td>
-                    <td><strong>${item.body}</strong> (${item.body_lon ? Math.floor(item.body_lon % 30) + '°' : ''})</td>
-                    <td>${item.orb_formatted || item.orb + '°'}</td>
-                </tr>
-            `;
-        });
-
-        starsHtml += `
-                </tbody>
-            </table>
-        `;
-
-        starsContainer.innerHTML = starsHtml;
-    }
-}
 
       // 6. ASPECTS
       var asps = snFindAspects(aspBodies, aspStyle);
