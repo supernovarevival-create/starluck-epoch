@@ -430,7 +430,7 @@ class ChartService:
                             "orb_formatted": f"{orb_deg}°{orb_min:02d}'"
                         })
 
-return {
+        return {
             "datetime_utc": dt_utc.isoformat(),
             "location": {"lat": lat, "lon": lon_east, "tz": tz_name},
             "angles": {"ASC": asc, "DS": norm360(asc + 180), "MC": mc, "IC": norm360(mc + 180)},
@@ -439,7 +439,7 @@ return {
             "planets": planets,
             "asteroids": calculated_asteroids,
             "fixed_stars": fixed_star_conjunctions,
-            "aspects": formatted_aspects,  # <-- Pass formatted strings here!
+            "aspects": formatted_aspects,
             "moon_phase": {"name": phase_name, "angle": phase_angle},
             "sect": "DAY" if day_chart else "NIGHT",
             "house_signs": house_splits,
