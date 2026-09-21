@@ -21,14 +21,12 @@ class NatalChartRequest(BaseModel):
     datetime_local: str = Field(..., description="Birth date/time in ISO format (YYYY-MM-DD HH:MM)")
     timezone: str = Field(..., description="Timezone (e.g., America/New_York)")
     location: GeoLocation
-    # Expanded regex pattern to accept all major Swiss Ephemeris house codes:
     house_system: str = Field(
         "PLACIDUS", 
         pattern="^(PLACIDUS|WHOLE|EQUAL|KOCH|REGIOMONTANUS|CAMPANUS|PORPHYRY|ALCABITIUS|TOPOCENTRIC|MORINUS|VEHLOW)$", 
         description="House system"
     )
-    # Optional list of asteroid catalog IDs (e.g. [1, 2, 433, 16])
-    asteroids: Optional[List[int]] = Field(default_factory=list, description="List of asteroid catalog numbers")
+    asteroids: Optional[List[int]] = Field(default_factory=list)
 
     @validator("datetime_local")
     def validate_datetime(cls, v):
