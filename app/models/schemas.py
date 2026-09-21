@@ -1,7 +1,7 @@
 """Pydantic models for request and response schemas."""
 
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 from pydantic import BaseModel, Field, validator
 
 
@@ -98,7 +98,7 @@ class NatalChartResponse(BaseModel):
     planets: Dict[str, Any]
     asteroids: Optional[Dict[str, Any]] = {}
     fixed_stars: Optional[List[Dict[str, Any]]] = []
-    aspects: Optional[List[str]] = []
+    aspects: Optional[List[Union[Aspect, Dict[str, Any], str]]] = []
     moon_phase: Optional[Dict[str, Any]] = {}
     sect: Optional[str] = "DAY"
 
