@@ -253,10 +253,25 @@ class ChartService:
                     continue
                 stars_to_scan.append(item)
 
-            # Targets: Planets, TrueNode, ASC, MC
-            target_bodies = {p_name: p_data["lon"] for p_name, p_data in planets.items()}
-            target_bodies["ASC"] = asc
-            target_bodies["MC"] = mc
+# Targets: Planets, Nodes, Angles, Part of Fortune, & Asteroids
+target_bodies = {p_name: p_data["lon"] for p_name, p_data in planets.items()}
+target_bodies["ASC"] = asc
+target_bodies["MC"] = mc
+
+# Add South Node
+if "TrueNode" in planets:
+    target_bodies["SouthNode"] = (planets["TrueNode"]["lon"] + 180) % 360
+elif "NorthNode" in planets:
+    target_bodies["SouthNode"] = (planets["NorthNode"]["lon"] + 180) % 360
+
+# Add Part of Fortune
+if "PartOfFortune" in planets:
+    target_bodies["PartOfFortune"] = planets["PartOfFortune"]["lon"]
+
+# Add Asteroids to fixed star conjunction checks
+for a_id, a_data in calculated_asteroids.items():
+    # Look up asteroid name if possible or use ID
+    target_bodies[f"Asteroid_{a_id}"] = a_data["lon"]
 
             for display_name, j2000_lon, category, cosmic_orb in stars_to_scan:
                 s_lon = (j2000_lon + (years_from_j2000 * 0.0139697)) % 360
