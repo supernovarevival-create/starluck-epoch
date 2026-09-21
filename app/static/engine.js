@@ -419,9 +419,11 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(req1)
       });
-      if (!res1.ok) throw new Error("Primary API error: " + res1.status);
-      var d1 = await res1.json();
-      console.log("Supernova Engine Raw Payload:", d1);
+if (!res1.ok) {
+        var errBody = await res1.text();
+        alert("BACKEND REASON: " + errBody);
+        throw new Error("Primary API error: " + res1.status + " Details: " + errBody);
+      }
 
       var d2Cusps = null;
       if (h2Label) {
