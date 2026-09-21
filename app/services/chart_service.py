@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from dateutil import tz
 
 from app.models.schemas import NatalChartRequest, NatalChartResponse, GeoLocation
@@ -74,7 +74,7 @@ class ChartService:
     def _compute_natal_chart(self, dt_local: datetime, lat: float, lon_east: float, tz_name: str,
                              house_system: str = "WHOLE", asteroids: Optional[List[int]] = None,
                              swe_path: str = None, star_scope: str = "MAJOR_GC",
-                             star_method: str = "STELLA_PARTILE") -> Dict[str, any]:
+                             star_method: str = "STELLA_PARTILE") -> Dict[str, Any]:
         """Compute natal chart."""
         from app.services.astrology_core import (
             planet_longitudes, swiss_angles_and_houses, is_day_chart,
@@ -158,12 +158,14 @@ class ChartService:
         calculated_asteroids: Dict[str, Dict] = {}
         requested_asteroids = asteroids or []
 
+        hour_decimal = dt_utc.hour + dt_utc.minute / 60.0 + dt_utc.second / 3600.0
+        tjd_ut = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day, hour_decimal) if HAVE_SWE else 0.0
+
         if HAVE_SWE and requested_asteroids:
             import swisseph as swe_calc
 
             AST_OFFSET = getattr(swe_calc, "AST_OFFSET", 10000)
 
-            # Native Swiss Eph IDs inside seas_18.se1
             NATIVE_MAP = {
                 1: getattr(swe_calc, "CERES", 17),
                 2: getattr(swe_calc, "PALLAS", 18),
@@ -172,9 +174,6 @@ class ChartService:
                 2060: getattr(swe_calc, "CHIRON", 15),
                 5145: getattr(swe_calc, "PHOLUS", 16),
             }
-
-            hour_decimal = dt_utc.hour + dt_utc.minute / 60.0 + dt_utc.second / 3600.0
-            tjd_ut = swe_calc.julday(dt_utc.year, dt_utc.month, dt_utc.day, hour_decimal)
 
             for ast_id in requested_asteroids:
                 try:
@@ -205,7 +204,7 @@ class ChartService:
                 except Exception as ast_err:
                     print(f"Skipping asteroid {ast_id}: {ast_err}")
 
-# -------------------------------------------------------------
+        # -------------------------------------------------------------
         # FIXED STARS & SAGITTARIUS A* (GALACTIC CENTER)
         # -------------------------------------------------------------
         fixed_star_conjunctions = []
@@ -213,15 +212,11 @@ class ChartService:
         if HAVE_SWE and star_scope != "NONE" and star_method != "NONE":
             import swisseph as swe_calc
 
-            # Star Database: (SwissEph Query Name, Display Name, Category, Cosmic Ascendance Max Orb)
             CATALOG_STARS = [
-                # 4 Royal Watchers
                 ("Aldebaran", "Aldebaran", "Royal Star", 5.0),
                 ("Regulus", "Regulus", "Royal Star", 5.0),
                 ("Antares", "Antares", "Royal Star", 5.0),
                 ("Fomalhaut", "Fomalhaut", "Royal Star", 5.0),
-
-                # Major Behenian Stars
                 ("Algol", "Algol", "Behenian Star", 3.0),
                 ("Alcyone", "Alcyone (Pleiades)", "Behenian Star", 2.5),
                 ("Sirius", "Sirius", "Behenian Star", 3.5),
@@ -233,8 +228,6 @@ class ChartService:
                 ("Deneb Algedi", "Deneb Algedi", "Behenian Star", 2.5),
                 ("Benetnasch", "Alkaid (Benetnasch)", "Behenian Star", 2.0),
                 ("Alphecca", "Alphecca", "Behenian Star", 2.0),
-
-                # Additional Major Stars
                 ("Betelgeuse", "Betelgeuse", "Major Star", 2.5),
                 ("Rigel", "Rigel", "Major Star", 2.5),
                 ("Bellatrix", "Bellatrix", "Major Star", 2.0),
@@ -251,10 +244,6 @@ class ChartService:
                     continue
                 stars_to_scan.append(item)
 
-            hour_decimal = dt_utc.hour + dt_utc.minute / 60.0 + dt_utc.second / 3600.0
-            tjd_ut = swe_calc.julday(dt_utc.year, dt_utc.month, dt_utc.day, hour_decimal)
-
-            # Targets: Planets, ASC, MC
             target_bodies = {p_name: p_data["lon"] for p_name, p_data in planets.items()}
             target_bodies["ASC"] = asc
             target_bodies["MC"] = mc
@@ -262,15 +251,13 @@ class ChartService:
             for star_query, display_name, category, cosmic_orb in stars_to_scan:
                 s_lon = None
                 try:
-                    # Look up star coordinates
                     res, _ = swe_calc.fixstar2_ut(star_query, tjd_ut, swe_calc.FLG_SWIEPH)
                     s_lon = float(res[0])
-                except Exception as e:
-                    # If file-based lookup fails, try moseph fallback flag
+                except Exception:
                     try:
                         res, _ = swe_calc.fixstar2_ut(star_query, tjd_ut, swe_calc.FLG_MOSEPH)
                         s_lon = float(res[0])
-                    except Exception as e2:
+                    except Exception:
                         pass
 
                 if s_lon is None:
@@ -313,8 +300,6 @@ class ChartService:
             # SAGITTARIUS A* (GALACTIC CENTER)
             # ---------------------------------------------------------
             if star_scope in ["MAJOR_GC", "ALL"]:
-                # Astronomical J2000 coordinates for Sgr A*: 266.9533° (~26°57'12" Sag)
-                # Precesses at ~50.29 arcseconds/year (0.013969°/year)
                 years_from_j2000 = (tjd_ut - 2451545.0) / 365.25
                 gc_lon = (266.9533 + (years_from_j2000 * 0.013969)) % 360
 
