@@ -71,7 +71,7 @@ class ChartService:
             sect=chart_data["sect"]
         )
 
-def _compute_natal_chart(self, dt_local: datetime, lat: float, lon_east: float, tz_name: str,
+    def _compute_natal_chart(self, dt_local: datetime, lat: float, lon_east: float, tz_name: str,
                              house_system: str = "WHOLE", asteroids: Optional[List[int]] = None,
                              swe_path: str = None, star_scope: str = "MAJOR_GC",
                              star_method: str = "STELLA_PARTILE") -> Dict[str, Any]:
@@ -211,7 +211,7 @@ def _compute_natal_chart(self, dt_local: datetime, lat: float, lon_east: float, 
 
         if star_scope != "NONE" and star_method != "NONE":
             # Catalog of J2000.0 tropical longitudes (epoch 2000-01-01 12:00 TT)
-            # All stars precess eastward along the ecliptic at ~50.291 arcsec/year (0.0139697°/year)
+            # Precess eastward along the ecliptic at ~50.291 arcsec/year (0.0139697°/year)
             # Tuple: (Display Name, J2000 Longitude, Category, Cosmic Ascendance Max Orb)
             CATALOG_STARS = [
                 # 4 Royal Watchers
