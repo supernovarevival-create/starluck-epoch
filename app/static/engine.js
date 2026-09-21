@@ -320,39 +320,60 @@
     return res;
   }
 
-  window.snCalculatePlacements = async function() {
-    var bDate = document.getElementById('sn-birthdate-date').value;
-    var bTime = document.getElementById('sn-birthdate-time').value || "12:00";
-    var isUnknown = document.getElementById('sn-unknown-time') ? document.getElementById('sn-unknown-time').checked : false;
-    var knownRising = document.getElementById('sn-known-rising') ? document.getElementById('sn-known-rising').value : "NONE";
+window.snCalculatePlacements = async function() {
+    // 1. SAFELY GRAB DATE & TIME (Supports both split and combined HTML inputs)
+    var dateEl = document.getElementById('sn-birthdate-date');
+    var timeEl = document.getElementById('sn-birthdate-time');
+    var legacyDtEl = document.getElementById('sn-birthdate');
+    var isUnknownEl = document.getElementById('sn-unknown-time');
+    var isUnknown = isUnknownEl ? isUnknownEl.checked : false;
+    var knownRisingEl = document.getElementById('sn-known-rising');
+    var knownRising = knownRisingEl ? knownRisingEl.value : "NONE";
 
-    var lat = document.getElementById('sn-lat').value;
-    var lon = document.getElementById('sn-lon').value;
-    var h1 = document.getElementById('sn-houses-1').value;
-    var h2 = document.getElementById('sn-houses-2').value;
-    var zod = document.getElementById('sn-zodiac').value;
-    var aspStyle = document.getElementById('sn-aspect-style').value;
-    var ayan = parseFloat(document.getElementById('sn-ayanamsa').value) || 0;
+    var bDate = "";
+    var bTime = "12:00";
 
-    var starScopeEl = document.getElementById("sn-star-scope");
-    var starMethodEl = document.getElementById("sn-star-method");
-    var starScope = starScopeEl ? starScopeEl.value : "MAJOR_GC";
-    var starMethod = starMethodEl ? starMethodEl.value : "STELLA_PARTILE";
-
-    var h1Label = snGetHouseSystemName(h1);
-    var h2Label = (h2 !== "NONE" && h2 !== h1) ? snGetHouseSystemName(h2) : null;
-
-    var loading = document.getElementById('sn-loading');
-    var disp = document.getElementById('sn-display-card');
-    var out = document.getElementById('sn-output-card');
+    if (dateEl && dateEl.value) {
+      bDate = dateEl.value;
+      bTime = (timeEl && timeEl.value) ? timeEl.value : "12:00";
+    } else if (legacyDtEl && legacyDtEl.value) {
+      var parts = legacyDtEl.value.split('T');
+      bDate = parts[0];
+      bTime = parts[1] || "12:00";
+    }
 
     if (!bDate) {
       alert("Please enter a birth date.");
       return;
     }
+
+    // 2. SAFELY GRAB LOCATION & DROPDOWNS (With fallback defaults so it NEVER crashes)
+    var latEl = document.getElementById('sn-lat');
+    var lonEl = document.getElementById('sn-lon');
+    var lat = latEl ? latEl.value : "";
+    var lon = lonEl ? lonEl.value : "";
+
     if (!lat || !lon) {
       alert("Please enter coordinates or find your city.");
       return;
+    }
+
+    var h1El = document.getElementById('sn-houses-1');
+    var h2El = document.getElementById('sn-houses-2');
+    var zodEl = document.getElementById('sn-zodiac');
+    var aspEl = document.getElementById('sn-aspect-style');
+    var ayanEl = document.getElementById('sn-ayanamsa');
+
+    var h1 = h1El ? h1El.value : "PLACIDUS";
+    var h2 = h2El ? h2El.value : "WHOLE";
+    var zod = zodEl ? zodEl.value : "TROPICAL";
+    var aspStyle = aspEl ? aspEl.value : "DEGREE_STD";
+    var ayan = (ayanEl && ayanEl.value) ? parseFloat(ayanEl.value) : 0;
+
+    var starScopeEl = document.getElementById("sn-star-scope") || document.getElementById("Fixed Stars & Cosmic Points");
+    var starMethodEl = document.getElementById("sn-star-method") || document.getElementById("Fixed Stars & Points Calculations Method");
+    var starScope = starScopeEl ? starScopeEl.value : "MAJOR_GC";
+    var starMethod = starMethodEl ? starMethodEl.value : "STELLA_PARTILE";
     }
 
     var tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
