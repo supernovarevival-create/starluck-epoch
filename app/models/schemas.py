@@ -6,10 +6,9 @@ from pydantic import BaseModel, Field, validator
 
 
 class GeoLocation(BaseModel):
-    """Geographic location model."""
-    lat: float = Field(..., ge=-90, le=90, description="Latitude in decimal degrees")
-    lon: float = Field(..., ge=-180, le=180, description="Longitude in decimal degrees (East positive)")
-    elevation_m: float = Field(0.0, ge=0, description="Elevation in meters")
+    lat: float
+    lon: float
+    elevation_m: Optional[float] = 0.0
 
 
 from typing import List, Optional, Any
@@ -18,15 +17,15 @@ from datetime import datetime
 
 class NatalChartRequest(BaseModel):
     """Request model for natal chart calculation."""
-    datetime_local: str = Field(..., description="Birth date/time in ISO format (YYYY-MM-DD HH:MM)")
-    timezone: str = Field(..., description="Timezone (e.g., America/New_York)")
+    datetime_local: str
+    timezone: str
     location: GeoLocation
     house_system: str = Field(
         "PLACIDUS", 
         pattern="^(PLACIDUS|WHOLE|EQUAL|KOCH|REGIOMONTANUS|CAMPANUS|PORPHYRY|ALCABITIUS|TOPOCENTRIC|MORINUS|VEHLOW)$", 
         description="House system"
     )
-    asteroids: Optional[List[int]] = Field(default_factory=list)
+    asteroids: Optional[List[int]] = []
     star_scope: Optional[str] = "MAJOR_GC"
     star_method: Optional[str] = "COSMIC_ASCENDANCE"  # Must allow str
 
@@ -94,17 +93,17 @@ class FixedStarConjunction(BaseModel):
 
 class NatalChartResponse(BaseModel):
     """Response model for natal chart calculation."""
-    datetime_utc: str = Field(..., description="UTC datetime")
-    location: ChartLocation
-    angles: Angle
-    houses: List[float] = Field(..., description="House cusps")
-    house_system: str = Field(..., description="House system used")
-    planets: Dict[str, PlanetPosition] = Field(..., description="Planet positions")
-    aspects: List[Aspect] = Field(..., description="Major aspects")
-    moon_phase: MoonPhase = Field(..., description="Moon phase")
-    sect: str = Field(..., description="Chart sect (DAY/NIGHT)")
-    asteroids: Optional[Dict[str, Any]] = None
-    fixed_stars: Optional[List[FixedStarConjunction]] = []
+    datetime_utc: str
+    location: Dict[str, Any]
+    angles: Dict[str, float]
+    houses: List[float]
+    house_system: str
+    planets: Dict[str, Any]
+    asteroids: Optional[Dict[str, Any]] = {}
+    fixed_stars: Optional[List[Dict[str, Any]]] = []
+    aspects: Optional[List[str]] = []
+    moon_phase: Optional[Dict[str, Any]] = {}
+    sect: Optional[str] = "DAY"
 
 
 class SVGRequest(BaseModel):
