@@ -43,7 +43,8 @@ class ChartService:
         dt_utc = dt_local.astimezone(tz.UTC)
         requested_asteroids = getattr(request, "asteroids", []) or []
         star_scope = getattr(request, "star_scope", "MAJOR_GC") or "MAJOR_GC"
-        star_method = getattr(request, "star_method", "STELLA_PARTILE") or "STELLA_PARTILE"
+        raw_star_method = getattr(request, "star_method", "STELLA_PARTILE") or "STELLA_PARTILE"
+        star_method = "COSMIC_ASCENDANCE" if "COSMIC" in str(raw_star_method).upper() else "STELLA_PARTILE"
 
         chart_data = self._compute_natal_chart(
             dt_local,
@@ -211,41 +212,84 @@ class ChartService:
 
         if star_scope != "NONE" and star_method != "NONE":
             # Catalog of J2000.0 tropical longitudes (epoch 2000-01-01 12:00 TT)
-            # Tuple: (Display Name, J2000 Longitude, Category, Default Cosmic Orb)
-            CATALOG_STARS = [
-                # 4 Royal Watchers (5.0° orb)
-                ("Aldebaran", 69.7892, "Royal Star", 5.0),
-                ("Regulus", 149.8331, "Royal Star", 5.0),
-                ("Antares", 249.7644, "Royal Star", 5.0),
-                ("Fomalhaut", 333.8694, "Royal Star", 5.0),
+            # Precess eastward along the ecliptic at ~50.291 arcsec/year (0.0139697°/year)
+            # Tuple: (Display Name, J2000 Longitude, Category)
+            EXPANDED_STARS = [
+                # 4 Royal Watchers (Watcher Stars of Persia)
+                ("Aldebaran", 69.7892, "Royal Star"),
+                ("Regulus", 149.8331, "Royal Star"),
+                ("Antares", 249.7644, "Royal Star"),
+                ("Fomalhaut", 333.8694, "Royal Star"),
 
-                # Major Behenian Stars (3.0° orb)
-                ("Algol", 56.1703, "Behenian Star", 3.0),
-                ("Alcyone (Pleiades)", 59.9989, "Behenian Star", 3.0),
-                ("Sirius", 104.0894, "Behenian Star", 3.0),
-                ("Procyon", 115.8031, "Behenian Star", 3.0),
-                ("Spica", 203.8436, "Behenian Star", 3.0),
-                ("Arcturus", 204.2389, "Behenian Star", 3.0),
-                ("Vega", 285.3183, "Behenian Star", 3.0),
-                ("Altair", 301.7828, "Behenian Star", 3.0),
-                ("Deneb Algedi", 323.5517, "Behenian Star", 3.0),
-                ("Alkaid (Benetnasch)", 177.0133, "Behenian Star", 3.0),
-                ("Alphecca", 222.2858, "Behenian Star", 3.0),
+                # The 15 Medieval Behenian Stars (Hermetic Roots)
+                ("Algol", 56.1703, "Behenian Star"),
+                ("Alcyone (Pleiades)", 59.9989, "Behenian Star"),
+                ("Capella", 81.8578, "Behenian Star"),
+                ("Sirius", 104.0894, "Behenian Star"),
+                ("Procyon", 115.8031, "Behenian Star"),
+                ("Algorab", 193.4542, "Behenian Star"),
+                ("Spica", 203.8436, "Behenian Star"),
+                ("Arcturus", 204.2389, "Behenian Star"),
+                ("Alphecca", 222.2858, "Behenian Star"),
+                ("Vega", 285.3183, "Behenian Star"),
+                ("Altair", 301.7828, "Behenian Star"),
+                ("Deneb Algedi", 323.5517, "Behenian Star"),
+                ("Alkaid (Benetnasch)", 177.0133, "Behenian Star"),
 
-                # Additional Major Stars (1.5° orb)
-                ("Betelgeuse", 88.7561, "Major Star", 1.5),
-                ("Rigel", 76.8328, "Major Star", 1.5),
-                ("Bellatrix", 80.9547, "Major Star", 1.5),
-                ("Castor", 110.2458, "Major Star", 1.5),
-                ("Pollux", 113.2208, "Major Star", 1.5),
-                ("Deneb", 335.3331, "Major Star", 1.5),
-                ("Markab", 353.4869, "Major Star", 1.5),
+                # Major Astrological & Navigational Stars
+                ("Sharatan", 33.9714, "Major Star"),
+                ("Hamal", 37.6681, "Major Star"),
+                ("Mira", 31.5283, "Major Star"),
+                ("Menkar", 44.3211, "Major Star"),
+                ("Rigel", 76.8328, "Major Star"),
+                ("Bellatrix", 80.9547, "Major Star"),
+                ("Elnath", 82.5806, "Major Star"),
+                ("Alnilam (Orion Belt)", 83.4719, "Major Star"),
+                ("Betelgeuse", 88.7561, "Major Star"),
+                ("Menkalinan", 89.9167, "Major Star"),
+                ("Sirrah (Alpheratz)", 14.3056, "Major Star"),
+                ("Mirach", 30.4056, "Major Star"),
+                ("Almach", 44.2306, "Major Star"),
+                ("Canopus", 104.9708, "Major Star"),
+                ("Castor", 110.2458, "Major Star"),
+                ("Pollux", 113.2208, "Major Star"),
+                ("Praesepe (Beehive M44)", 127.3417, "Major Star"),
+                ("Asellus Borealis", 127.5500, "Major Star"),
+                ("Asellus Australis", 128.7222, "Major Star"),
+                ("Alphard (Hydra Heart)", 147.2889, "Major Star"),
+                ("Denebola", 171.6250, "Major Star"),
+                ("Zosma", 161.3250, "Major Star"),
+                ("Copula", 175.1200, "Major Star"),
+                ("Vindemiatrix", 189.9417, "Major Star"),
+                ("Seginus", 197.6667, "Major Star"),
+                ("Zuben Elgenubi", 225.0889, "Major Star"),
+                ("Zuben Eschamali", 229.3694, "Major Star"),
+                ("Unukalhai", 232.0722, "Major Star"),
+                ("Toliman (Alpha Centauri)", 239.5250, "Major Star"),
+                ("Agena (Hadar)", 233.8056, "Major Star"),
+                ("Graffias (Acrab)", 243.1917, "Major Star"),
+                ("Dschubba", 242.5667, "Major Star"),
+                ("Sabik", 257.9722, "Major Star"),
+                ("Ras Alhague", 262.4500, "Major Star"),
+                ("Shaula", 264.5917, "Major Star"),
+                ("Nunki (Pelagus)", 282.3861, "Major Star"),
+                ("Terebellum", 295.8333, "Major Star"),
+                ("Tarazed", 300.9333, "Major Star"),
+                ("Dabih", 304.0500, "Major Star"),
+                ("Sadalsuud", 323.4000, "Major Star"),
+                ("Sadalmelik", 323.7667, "Major Star"),
+                ("Deneb (Cygnus)", 335.3331, "Major Star"),
+                ("Skat", 338.8750, "Major Star"),
+                ("Achernar", 345.3167, "Major Star"),
+                ("Markab", 353.4869, "Major Star"),
+                ("Scheat", 359.3639, "Major Star"),
+                ("Polaris (North Star)", 28.5667, "Major Star"),
             ]
 
             years_from_j2000 = (dt_utc.year - 2000) + (dt_utc.timetuple().tm_yday - 1) / 365.25
 
             stars_to_scan = []
-            for item in CATALOG_STARS:
+            for item in EXPANDED_STARS:
                 cat = item[2]
                 if star_scope == "ROYAL_BEHENIAN" and cat not in ["Royal Star", "Behenian Star"]:
                     continue
@@ -290,11 +334,13 @@ class ChartService:
                 ast_display = ASTEROID_NAMES.get(int_id, f"Asteroid {int_id}")
                 target_bodies[ast_display] = a_data["lon"]
 
-            for display_name, j2000_lon, category, cosmic_orb in stars_to_scan:
+            is_cosmic = "COSMIC" in str(star_method).upper()
+
+            for display_name, j2000_lon, category in stars_to_scan:
                 s_lon = (j2000_lon + (years_from_j2000 * 0.0139697)) % 360
 
-                # Check if method includes COSMIC (5° Royal, 3° Behenian, 1.5° Major)
-                if "COSMIC" in star_method.upper():
+                # Cosmic Ascendance Tiers: Royal=5.0°, Behenian=3.0°, Major=1.5°
+                if is_cosmic:
                     if category == "Royal Star":
                         max_orb = 5.0
                     elif category == "Behenian Star":
@@ -302,7 +348,7 @@ class ChartService:
                     else:
                         max_orb = 1.5
                 else:
-                    max_orb = 1.25
+                    max_orb = 1.25  # Strict Stella Partile
 
                 for body_name, b_lon in target_bodies.items():
                     diff = abs(s_lon - b_lon)
@@ -335,17 +381,18 @@ class ChartService:
                             "orb_formatted": f"{orb_deg}°{orb_min:02d}'"
                         })
 
-            # Sagittarius A* (Galactic Center)
+            # Sagittarius A* (Galactic Center) & Super Galactic Center
             if star_scope in ["MAJOR_GC", "ALL", "MAJOR"]:
+                # GC: ~266.95° (26°57' Sag)
                 gc_lon = (266.9533 + (years_from_j2000 * 0.0139697)) % 360
-                gc_max_orb = 3.0 if "COSMIC" in star_method.upper() else 1.25
+                gc_orb = 3.0 if is_cosmic else 1.25
 
                 for body_name, b_lon in target_bodies.items():
                     diff = abs(gc_lon - b_lon)
                     if diff > 180:
                         diff = 360 - diff
 
-                    if diff <= gc_max_orb:
+                    if diff <= gc_orb:
                         s_sign, s_deg, _ = deg_to_signpos(gc_lon)
                         deg_int = int(s_deg)
                         min_int = int(round((s_deg - deg_int) * 60))
