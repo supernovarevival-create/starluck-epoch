@@ -27,6 +27,8 @@ class NatalChartRequest(BaseModel):
         description="House system"
     )
     asteroids: Optional[List[int]] = Field(default_factory=list)
+    star_scope: Optional[str] = "MAJOR_GC"
+    star_method: Optional[str] = "COSMIC_ASCENDANCE"  # Must allow str
 
     @validator("datetime_local")
     def validate_datetime(cls, v):
