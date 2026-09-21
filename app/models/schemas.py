@@ -76,6 +76,19 @@ class ChartLocation(BaseModel):
     lon: float = Field(..., description="Longitude")
     tz: str = Field(..., description="Timezone")
 
+class FixedStarConjunction(BaseModel):
+    star: str
+    category: str
+    star_lon: float
+    star_sign: str
+    star_deg: str
+    body: str
+    body_lon: float
+    orb: float
+    orb_formatted: str
+    star_method: Optional[str] = "COSMIC_ASCENDANCE" # or "STRICT_ORB"
+    star_filter: Optional[str] = "ALL"              # "ROYAL", "BEHENIAN", "DEEP_SPACE"
+
 
 class NatalChartResponse(BaseModel):
     """Response model for natal chart calculation."""
@@ -89,6 +102,7 @@ class NatalChartResponse(BaseModel):
     moon_phase: MoonPhase = Field(..., description="Moon phase")
     sect: str = Field(..., description="Chart sect (DAY/NIGHT)")
     asteroids: Optional[Dict[str, Any]] = None
+    fixed_stars: Optional[List[FixedStarConjunction]] = []
 
 
 class SVGRequest(BaseModel):
