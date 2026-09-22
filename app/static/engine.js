@@ -429,111 +429,71 @@
   // =========================================================================
   // STEP 3: ENGINE MODE SWITCHER & QUICK-SET HELPERS
   // =========================================================================
-  window.snCurrentMode = "NATAL_DUAL";
+window.snCurrentMode = "NATAL_DUAL";
 
   window.snSetEngineMode = function(mode) {
     window.snCurrentMode = mode;
+    console.log("[Supernova] Engine mode changed to:", mode);
+
     var bWrap = document.getElementById("sn-chart-b-wrap");
     var twinBar = document.getElementById("sn-twin-quick-bar");
     var bTitle = document.getElementById("sn-chart-b-title");
     var bLoc = document.getElementById("sn-b-location-wrap");
+    var h2Group = document.getElementById("sn-houses-2") ? document.getElementById("sn-houses-2").closest("div") : null;
 
-    // Reset button background and text colors
-    document.querySelectorAll(".sn-mode-btn").forEach(function(btn) {
+    // Reset button styles
+    var buttons = document.querySelectorAll(".sn-mode-btn");
+    buttons.forEach(function(btn) {
       btn.style.background = "transparent";
       btn.style.color = "#94a3b8";
     });
 
+    // Highlight selected button
+    var activeBtnId = {
+      "NATAL_DUAL": "sn-btn-mode-natal",
+      "TWIN_COMPARE": "sn-btn-mode-twin",
+      "SYNASTRY": "sn-btn-mode-synastry",
+      "TRANSITS": "sn-btn-mode-transits"
+    }[mode];
+
+    var activeBtn = document.getElementById(activeBtnId);
+    if (activeBtn) {
+      activeBtn.style.background = "#0d9488";
+      activeBtn.style.color = "#ffffff";
+    }
+
     if (mode === "NATAL_DUAL") {
-      var btnNatal = document.getElementById("sn-btn-mode-natal");
-      if (btnNatal) {
-        btnNatal.style.background = "#0d9488";
-        btnNatal.style.color = "#fff";
-      }
       if (bWrap) bWrap.style.display = "none";
       if (twinBar) twinBar.style.display = "none";
+      if (h2Group) h2Group.style.display = "block";
     } else if (mode === "TWIN_COMPARE") {
-      var btnTwin = document.getElementById("sn-btn-mode-twin");
-      if (btnTwin) {
-        btnTwin.style.background = "#0d9488";
-        btnTwin.style.color = "#fff";
-      }
       if (bWrap) bWrap.style.display = "block";
       if (twinBar) twinBar.style.display = "flex";
-      if (bTitle) bTitle.textContent = "Twin / Second Chart Details";
+      if (bTitle) bTitle.textContent = "Twin / Chart B Details";
       if (bLoc) bLoc.style.display = "grid";
+      if (h2Group) h2Group.style.display = "none"; // Hide secondary house dropdown in twin mode
       window.snSyncTwinLocation();
     } else if (mode === "SYNASTRY") {
-      var btnSyn = document.getElementById("sn-btn-mode-synastry");
-      if (btnSyn) {
-        btnSyn.style.background = "#0d9488";
-        btnSyn.style.color = "#fff";
-      }
       if (bWrap) bWrap.style.display = "block";
       if (twinBar) twinBar.style.display = "none";
-      if (bTitle) bTitle.textContent = "Partner / Second Chart Details";
+      if (bTitle) bTitle.textContent = "Partner / Chart B Details";
       if (bLoc) bLoc.style.display = "grid";
+      if (h2Group) h2Group.style.display = "none";
     } else if (mode === "TRANSITS") {
-      var btnTrans = document.getElementById("sn-btn-mode-transits");
-      if (btnTrans) {
-        btnTrans.style.background = "#0d9488";
-        btnTrans.style.color = "#fff";
-      }
       if (bWrap) bWrap.style.display = "block";
       if (twinBar) twinBar.style.display = "none";
-      if (bTitle) bTitle.textContent = "Transit Date / Location";
+      if (bTitle) bTitle.textContent = "Transit Date & Time";
+      if (h2Group) h2Group.style.display = "none";
 
-      // Populate current local date & time automatically
       var now = new Date();
-      var nowYear = now.getFullYear();
-      var nowMonth = String(now.getMonth() + 1).padStart(2, '0');
-      var nowDate = String(now.getDate()).padStart(2, '0');
-      var nowHours = String(now.getHours()).padStart(2, '0');
-      var nowMins = String(now.getMinutes()).padStart(2, '0');
-
+      var nowYMD = now.toISOString().split("T")[0];
+      var nowHM = now.toTimeString().slice(0, 5);
       var bDateEl = document.getElementById("sn-b-date");
       var bTimeEl = document.getElementById("sn-b-time");
-      if (bDateEl) bDateEl.value = nowYear + "-" + nowMonth + "-" + nowDate;
-      if (bTimeEl) bTimeEl.value = nowHours + ":" + nowMins;
+      if (bDateEl) bDateEl.value = nowYMD;
+      if (bTimeEl) bTimeEl.value = nowHM;
       window.snSyncTwinLocation();
     }
-  };
-
-  // Helper to copy location from Person A to Person B
-  window.snSyncTwinLocation = function() {
-    var latAEl = document.getElementById("sn-lat");
-    var lonAEl = document.getElementById("sn-lon");
-    var latA = latAEl ? latAEl.value : "";
-    var lonA = lonAEl ? lonAEl.value : "";
-
-    var latB = document.getElementById("sn-b-lat");
-    var lonB = document.getElementById("sn-b-lon");
-    if (latB && !latB.value && latA) latB.value = latA;
-    if (lonB && !lonB.value && lonA) lonB.value = lonA;
-  };
-
-  // Quick button to add X minutes to Chart A for twins
-  window.snQuickSetTwin = function(minutesOffset) {
-    var dateAEl = document.getElementById("sn-birthdate-date");
-    var timeAEl = document.getElementById("sn-birthdate-time");
-    var dateA = dateAEl ? dateAEl.value : "";
-    var timeA = timeAEl ? timeAEl.value : "";
-    if (!dateA || !timeA) return;
-
-    var dt = new Date(dateA + "T" + timeA);
-    dt.setMinutes(dt.getMinutes() + minutesOffset);
-
-    var dtYear = dt.getFullYear();
-    var dtMonth = String(dt.getMonth() + 1).padStart(2, '0');
-    var dtDate = String(dt.getDate()).padStart(2, '0');
-    var dtHours = String(dt.getHours()).padStart(2, '0');
-    var dtMins = String(dt.getMinutes()).padStart(2, '0');
-
-    var bDateEl = document.getElementById("sn-b-date");
-    var bTimeEl = document.getElementById("sn-b-time");
-    if (bDateEl) bDateEl.value = dtYear + "-" + dtMonth + "-" + dtDate;
-    if (bTimeEl) bTimeEl.value = dtHours + ":" + dtMins;
-    window.snSyncTwinLocation();
   };
 
   // --- MAIN PLACEMENT ENGINE ---
