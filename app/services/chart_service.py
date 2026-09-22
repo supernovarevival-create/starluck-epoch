@@ -64,6 +64,7 @@ class ChartService:
             swe_path=self.swe_path,
             star_scope=star_scope,
             star_method=star_method
+            include_uranian=include_uranian
         )
 
         return NatalChartResponse(
@@ -84,6 +85,7 @@ class ChartService:
                              house_system: str = "WHOLE", asteroids: Optional[List[int]] = None,
                              swe_path: str = None, star_scope: str = "MAJOR_GC",
                              star_method: str = "STELLA_PARTILE") -> Dict[str, Any]:
+                             include_uranian: bool = False) -> Dict[str, Any]:   
         """Compute natal chart."""
         from app.services.astrology_core import (
             planet_longitudes, swiss_angles_and_houses, is_day_chart,
@@ -259,7 +261,7 @@ class ChartService:
         ]
 
         # Calculate if requested by user toggle
-        if getattr(request, "include_uranian", False):
+        if getattr(request, "include_uranian", False) or False
             import swisseph as swe_calc
             for u_id, u_name in URANIAN_BODIES:
                 res, _ = swe_calc.calc_ut(tjd_ut, u_id, swe_calc.FLG_SWIEPH | swe_calc.FLG_SPEED)
