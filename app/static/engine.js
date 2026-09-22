@@ -360,7 +360,7 @@
     var pGlyphs = {
       "Sun": "☉", "Moon": "☽", "Mercury": "☿", "Venus": "♀", "Mars": "♂",
       "Jupiter": "♃", "Saturn": "♄", "Uranus": "♅", "Neptune": "♆", "Pluto": "♇",
-      "TrueNode": "☊", "NorthNode": "☊", "SouthNode": "☋", "Chiron": "⚷"
+      "TrueNode": "☊", "NorthNode": "☊", "SouthNode": "☋", "Chiron": "⚷", "BlackMoonLilith": "⚸"
     };
 
     var svg = '<svg viewBox="0 0 ' + size + ' ' + size + '" style="width: 100%; height: auto; background: #0c0d14; border-radius: 50%; border: 1px solid #2d3348; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">';
@@ -646,6 +646,8 @@
           var ph2 = d2Cusps ? snDetermineHouse(pLon, d2Cusps) : null;
           var retroBadge = d1.planets[pName].retro ? ' <span style="color:#f87171; font-weight:bold;">(R)</span>' : '';
           var dualTag = snFormatDualHouseBadge(ph1, h1Label, ph2, h2Label);
+          var displayName = (pName === "BlackMoonLilith") ? "Black Moon Lilith" : pName;
+          plaHtml += '<div><strong>' + displayName + ':</strong> ' + window.snFormatZodiac(pLon) + retroBadge + dualTag + '</div>';
 
           if (pName === "TrueNode" || pName === "NorthNode") {
             var nnLine = '<div><strong>North Node:</strong> ' + window.snFormatZodiac(pLon) + retroBadge + dualTag + '</div>';
