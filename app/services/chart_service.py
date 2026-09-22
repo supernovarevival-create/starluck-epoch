@@ -152,6 +152,23 @@ class ChartService:
             "retro": False
         }
 
+        # -------------------------------------------------------------
+        # BLACK MOON LILITH (MEAN LUNAR APOGEE = 12)
+        # -------------------------------------------------------------
+        if HAVE_SWE:
+            import swisseph as swe_calc
+            # SE_MEAN_APOG = 12
+            res, _ = swe_calc.calc_ut(tjd_ut, getattr(swe_calc, "MEAN_APOG", 12), swe_calc.FLG_SWIEPH | swe_calc.FLG_SPEED)
+            lilith_lon = float(res[0])
+            s, d, _ = deg_to_signpos(lilith_lon)
+            planets["BlackMoonLilith"] = {
+                "lon": lilith_lon,
+                "sign": s,
+                "deg": d,
+                "house": house_index_for_longitude(houses, lilith_lon),
+                "retro": bool(res[3] < 0)
+            }                         
+
         raw_aspects = find_aspects({k: v["lon"] for k, v in planets.items() if k != "PartOfFortune"})
         formatted_aspects = []
         for a in raw_aspects:
