@@ -39,6 +39,8 @@ class ChartService:
         dt_local = datetime.fromisoformat(request.datetime_local)
         if dt_local.tzinfo is None:
             dt_local = dt_local.replace(tzinfo=tz.gettz(request.timezone))
+        hour_decimal = dt_utc.hour + dt_utc.minute / 60.0 + dt_utc.second / 3600.0
+        tjd_ut = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day, hour_decimal) if HAVE_SWE else 0.0     
 
         dt_utc = dt_local.astimezone(tz.UTC)
         requested_asteroids = getattr(request, "asteroids", []) or []
@@ -191,9 +193,6 @@ class ChartService:
         # -------------------------------------------------------------
         calculated_asteroids: Dict[str, Dict] = {}
         requested_asteroids = asteroids or []
-
-        hour_decimal = dt_utc.hour + dt_utc.minute / 60.0 + dt_utc.second / 3600.0
-        tjd_ut = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day, hour_decimal) if HAVE_SWE else 0.0
 
         if HAVE_SWE and requested_asteroids:
             import swisseph as swe_calc
