@@ -420,6 +420,126 @@
     return '<div style="font-size: 0.8rem; font-weight:600; color:#2dd4bf; margin-bottom:8px;">' + title + '</div>' + svg;
   }
 
+  svg += '<text x="18" y="' + (center + 4) + '" font-size="10" font-family="sans-serif" font-weight="700" fill="#2dd4bf">ASC</text>';
+
+    svg += '</svg>';
+    return '<div style="font-size: 0.8rem; font-weight:600; color:#2dd4bf; margin-bottom:8px;">' + title + '</div>' + svg;
+  }
+
+  // =========================================================================
+  // STEP 3: ENGINE MODE SWITCHER & QUICK-SET HELPERS
+  // =========================================================================
+  window.snCurrentMode = "NATAL_DUAL";
+
+  window.snSetEngineMode = function(mode) {
+    window.snCurrentMode = mode;
+    var bWrap = document.getElementById("sn-chart-b-wrap");
+    var twinBar = document.getElementById("sn-twin-quick-bar");
+    var bTitle = document.getElementById("sn-chart-b-title");
+    var bLoc = document.getElementById("sn-b-location-wrap");
+
+    // Reset button background and text colors
+    document.querySelectorAll(".sn-mode-btn").forEach(function(btn) {
+      btn.style.background = "transparent";
+      btn.style.color = "#94a3b8";
+    });
+
+    if (mode === "NATAL_DUAL") {
+      var btnNatal = document.getElementById("sn-btn-mode-natal");
+      if (btnNatal) {
+        btnNatal.style.background = "#0d9488";
+        btnNatal.style.color = "#fff";
+      }
+      if (bWrap) bWrap.style.display = "none";
+      if (twinBar) twinBar.style.display = "none";
+    } else if (mode === "TWIN_COMPARE") {
+      var btnTwin = document.getElementById("sn-btn-mode-twin");
+      if (btnTwin) {
+        btnTwin.style.background = "#0d9488";
+        btnTwin.style.color = "#fff";
+      }
+      if (bWrap) bWrap.style.display = "block";
+      if (twinBar) twinBar.style.display = "flex";
+      if (bTitle) bTitle.textContent = "Twin / Second Chart Details";
+      if (bLoc) bLoc.style.display = "grid";
+      window.snSyncTwinLocation();
+    } else if (mode === "SYNASTRY") {
+      var btnSyn = document.getElementById("sn-btn-mode-synastry");
+      if (btnSyn) {
+        btnSyn.style.background = "#0d9488";
+        btnSyn.style.color = "#fff";
+      }
+      if (bWrap) bWrap.style.display = "block";
+      if (twinBar) twinBar.style.display = "none";
+      if (bTitle) bTitle.textContent = "Partner / Second Chart Details";
+      if (bLoc) bLoc.style.display = "grid";
+    } else if (mode === "TRANSITS") {
+      var btnTrans = document.getElementById("sn-btn-mode-transits");
+      if (btnTrans) {
+        btnTrans.style.background = "#0d9488";
+        btnTrans.style.color = "#fff";
+      }
+      if (bWrap) bWrap.style.display = "block";
+      if (twinBar) twinBar.style.display = "none";
+      if (bTitle) bTitle.textContent = "Transit Date / Location";
+
+      // Populate current local date & time automatically
+      var now = new Date();
+      var nowYear = now.getFullYear();
+      var nowMonth = String(now.getMonth() + 1).padStart(2, '0');
+      var nowDate = String(now.getDate()).padStart(2, '0');
+      var nowHours = String(now.getHours()).padStart(2, '0');
+      var nowMins = String(now.getMinutes()).padStart(2, '0');
+
+      var bDateEl = document.getElementById("sn-b-date");
+      var bTimeEl = document.getElementById("sn-b-time");
+      if (bDateEl) bDateEl.value = nowYear + "-" + nowMonth + "-" + nowDate;
+      if (bTimeEl) bTimeEl.value = nowHours + ":" + nowMins;
+      window.snSyncTwinLocation();
+    }
+  };
+
+  // Helper to copy location from Person A to Person B
+  window.snSyncTwinLocation = function() {
+    var latAEl = document.getElementById("sn-lat");
+    var lonAEl = document.getElementById("sn-lon");
+    var latA = latAEl ? latAEl.value : "";
+    var lonA = lonAEl ? lonAEl.value : "";
+
+    var latB = document.getElementById("sn-b-lat");
+    var lonB = document.getElementById("sn-b-lon");
+    if (latB && !latB.value && latA) latB.value = latA;
+    if (lonB && !lonB.value && lonA) lonB.value = lonA;
+  };
+
+  // Quick button to add X minutes to Chart A for twins
+  window.snQuickSetTwin = function(minutesOffset) {
+    var dateAEl = document.getElementById("sn-birthdate-date");
+    var timeAEl = document.getElementById("sn-birthdate-time");
+    var dateA = dateAEl ? dateAEl.value : "";
+    var timeA = timeAEl ? timeAEl.value : "";
+    if (!dateA || !timeA) return;
+
+    var dt = new Date(dateA + "T" + timeA);
+    dt.setMinutes(dt.getMinutes() + minutesOffset);
+
+    var dtYear = dt.getFullYear();
+    var dtMonth = String(dt.getMonth() + 1).padStart(2, '0');
+    var dtDate = String(dt.getDate()).padStart(2, '0');
+    var dtHours = String(dt.getHours()).padStart(2, '0');
+    var dtMins = String(dt.getMinutes()).padStart(2, '0');
+
+    var bDateEl = document.getElementById("sn-b-date");
+    var bTimeEl = document.getElementById("sn-b-time");
+    if (bDateEl) bDateEl.value = dtYear + "-" + dtMonth + "-" + dtDate;
+    if (bTimeEl) bTimeEl.value = dtHours + ":" + dtMins;
+    window.snSyncTwinLocation();
+  };
+
+  // --- MAIN PLACEMENT ENGINE ---
+  window.snCalculatePlacements = async function() {
+    // ... continues into your calculation logic ...
+
   // --- MAIN PLACEMENT ENGINE ---
   window.snCalculatePlacements = async function() {
     var dateEl = document.getElementById('sn-birthdate-date');
