@@ -92,6 +92,109 @@
     if (ctr) ctr.textContent = window.snActive.length + " / 10 active";
   };
 
+  // =========================================================================
+  // GLOBAL ENGINE MODE CONTROLLER
+  // =========================================================================
+  window.snCurrentMode = "NATAL_DUAL";
+
+  window.snSyncTwinLocation = function() {
+    var latAEl = document.getElementById("sn-lat");
+    var lonAEl = document.getElementById("sn-lon");
+    var latA = latAEl ? latAEl.value : "";
+    var lonA = lonAEl ? lonAEl.value : "";
+
+    var latB = document.getElementById("sn-b-lat");
+    var lonB = document.getElementById("sn-b-lon");
+    if (latB && !latB.value && latA) latB.value = latA;
+    if (lonB && !lonB.value && lonA) lonB.value = lonA;
+  };
+
+  window.snQuickSetTwin = function(minutesOffset) {
+    var dateAEl = document.getElementById("sn-birthdate-date");
+    var timeAEl = document.getElementById("sn-birthdate-time");
+    var dateA = dateAEl ? dateAEl.value : "";
+    var timeA = timeAEl ? timeAEl.value : "";
+    if (!dateA || !timeA) return;
+
+    var dt = new Date(dateA + "T" + timeA);
+    dt.setMinutes(dt.getMinutes() + minutesOffset);
+
+    var dtYear = dt.getFullYear();
+    var dtMonth = String(dt.getMonth() + 1).padStart(2, '0');
+    var dtDate = String(dt.getDate()).padStart(2, '0');
+    var dtHours = String(dt.getHours()).padStart(2, '0');
+    var dtMins = String(dt.getMinutes()).padStart(2, '0');
+
+    var bDateEl = document.getElementById("sn-b-date");
+    var bTimeEl = document.getElementById("sn-b-time");
+    if (bDateEl) bDateEl.value = dtYear + "-" + dtMonth + "-" + dtDate;
+    if (bTimeEl) bTimeEl.value = dtHours + ":" + dtMins;
+    window.snSyncTwinLocation();
+  };
+
+  window.snSetEngineMode = function(mode) {
+    window.snCurrentMode = mode;
+    console.log("[Supernova] Engine mode active:", mode);
+
+    var bWrap = document.getElementById("sn-chart-b-wrap");
+    var twinBar = document.getElementById("sn-twin-quick-bar");
+    var bTitle = document.getElementById("sn-chart-b-title");
+    var bLoc = document.getElementById("sn-b-location-wrap");
+    var h2El = document.getElementById("sn-houses-2");
+    var h2Group = h2El ? h2El.closest("div") : null;
+
+    document.querySelectorAll(".sn-mode-btn").forEach(function(btn) {
+      btn.style.background = "transparent";
+      btn.style.color = "#94a3b8";
+    });
+
+    var activeBtnId = {
+      "NATAL_DUAL": "sn-btn-mode-natal",
+      "TWIN_COMPARE": "sn-btn-mode-twin",
+      "SYNASTRY": "sn-btn-mode-synastry",
+      "TRANSITS": "sn-btn-mode-transits"
+    }[mode];
+
+    var activeBtn = document.getElementById(activeBtnId);
+    if (activeBtn) {
+      activeBtn.style.background = "#0d9488";
+      activeBtn.style.color = "#ffffff";
+    }
+
+    if (mode === "NATAL_DUAL") {
+      if (bWrap) bWrap.style.display = "none";
+      if (twinBar) twinBar.style.display = "none";
+      if (h2Group) h2Group.style.display = "block";
+    } else if (mode === "TWIN_COMPARE") {
+      if (bWrap) bWrap.style.display = "block";
+      if (twinBar) twinBar.style.display = "flex";
+      if (bTitle) bTitle.textContent = "Twin / Second Chart Details";
+      if (bLoc) bLoc.style.display = "grid";
+      if (h2Group) h2Group.style.display = "none";
+      window.snSyncTwinLocation();
+    } else if (mode === "SYNASTRY") {
+      if (bWrap) bWrap.style.display = "block";
+      if (twinBar) twinBar.style.display = "none";
+      if (bTitle) bTitle.textContent = "Partner / Second Chart Details";
+      if (bLoc) bLoc.style.display = "grid";
+      if (h2Group) h2Group.style.display = "none";
+    } else if (mode === "TRANSITS") {
+      if (bWrap) bWrap.style.display = "block";
+      if (twinBar) twinBar.style.display = "none";
+      if (bTitle) bTitle.textContent = "Transit Date & Time";
+      if (h2Group) h2Group.style.display = "none";
+
+      var now = new Date();
+      var nowYMD = now.toISOString().split("T")[0];
+      var nowHM = now.toTimeString().slice(0, 5);
+      var bDateEl = document.getElementById("sn-b-date");
+      var bTimeEl = document.getElementById("sn-b-time");
+      if (bDateEl) bDateEl.value = nowYMD;
+      if (bTimeEl) bTimeEl.value = nowHM;
+      window.snSyncTwinLocation();
+    }
+  };
+
   window.snPopulateDatalist = function() {
     var dl = document.getElementById('sn-ast-catalog');
     if (!dl) return;
@@ -498,10 +601,6 @@ window.snCurrentMode = "NATAL_DUAL";
 
   // --- MAIN PLACEMENT ENGINE ---
   window.snCalculatePlacements = async function() {
-    // ... continues into your calculation logic ...
-
-  // --- MAIN PLACEMENT ENGINE ---
-  window.snCalculatePlacements = async function() {
     var dateEl = document.getElementById('sn-birthdate-date');
     var timeEl = document.getElementById('sn-birthdate-time');
     var legacyDtEl = document.getElementById('sn-birthdate');
@@ -577,7 +676,171 @@ window.snCurrentMode = "NATAL_DUAL";
       location: { lat: parseFloat(lat), lon: parseFloat(lon), elevation_m: 0 },
       asteroids: asteroidIdList,
       star_scope: starScope,
-      star_method: starMethod
+      star_method: starMethod,
+      house_system: h1
+    };
+
+    var d1 = null;
+    var d2Cusps = null;
+    var d2Data = null;
+
+    try {
+      if (window.snCurrentMode === "TWIN_COMPARE" || window.snCurrentMode === "SYNASTRY" || window.snCurrentMode === "TRANSITS") {
+        // Read Person B / Transit inputs
+        var bDateEl = document.getElementById("sn-b-date");
+        var bTimeEl = document.getElementById("sn-b-time");
+        var bLatEl = document.getElementById("sn-b-lat");
+        var bLonEl = document.getElementById("sn-b-lon");
+
+        var bDateVal = (bDateEl && bDateEl.value) ? bDateEl.value : bDate;
+        var bTimeVal = (bTimeEl && bTimeEl.value) ? bTimeEl.value : "12:00";
+        var bLatVal = (bLatEl && bLatEl.value) ? bLatEl.value : lat;
+        var bLonVal = (bLonEl && bLonEl.value) ? bLonEl.value : lon;
+
+        var reqB = {
+          datetime_local: bDateVal + " " + bTimeVal,
+          timezone: tz,
+          location: { lat: parseFloat(bLatVal), lon: parseFloat(bLonVal), elevation_m: 0 },
+          asteroids: asteroidIdList,
+          star_scope: starScope,
+          star_method: starMethod,
+          house_system: h1
+        };
+
+        // Fetch Chart A and Chart B concurrently
+        var resArray = await Promise.all([
+          fetch('https://supernova-calc-engine.onrender.com/api/v1/natal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(baseReq)
+          }),
+          fetch('https://supernova-calc-engine.onrender.com/api/v1/natal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(reqB)
+          })
+        ]);
+
+        if (!resArray[0].ok || !resArray[1].ok) {
+          var errA = await resArray[0].text();
+          var errB = await resArray[1].text();
+          alert("BACKEND REASON (A): " + errA + "\nBACKEND REASON (B): " + errB);
+          throw new Error("One or both chart calculations failed.");
+        }
+
+        d1 = await resArray[0].json();
+        d2Data = await resArray[1].json();
+        d2Cusps = d2Data.houses;
+        h2Label = (window.snCurrentMode === "TWIN_COMPARE") ? "Twin B (" + bTimeVal + ")" : "Chart B";
+
+      } else {
+        // STANDARD MODE: Natal Dual-House Systems
+        var res1 = await fetch('https://supernova-calc-engine.onrender.com/api/v1/natal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(baseReq)
+        });
+        if (!res1.ok) {
+          var errBody = await res1.text();
+          alert("BACKEND REASON: " + errBody);
+          throw new Error("Primary API error: " + res1.status + " Details: " + errBody);
+        }
+        d1 = await res1.json();
+
+        if (h2Label) {
+          var req2 = Object.assign({}, baseReq, { house_system: h2 });
+          var res2 = await fetch('https://supernova-calc-engine.onrender.com/api/v1/natal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(req2)
+          });
+          if (res2.ok) {
+            var d2 = await res2.json();
+            d2Cusps = d2.houses;
+          }
+        }
+      }
+
+    var d1 = null;
+    var d2Cusps = null;
+    var d2Data = null;
+
+    try {
+      if (window.snCurrentMode === "TWIN_COMPARE" || window.snCurrentMode === "SYNASTRY" || window.snCurrentMode === "TRANSITS") {
+        // Read Person B / Transit inputs
+        var bDateEl = document.getElementById("sn-b-date");
+        var bTimeEl = document.getElementById("sn-b-time");
+        var bLatEl = document.getElementById("sn-b-lat");
+        var bLonEl = document.getElementById("sn-b-lon");
+
+        var bDateVal = (bDateEl && bDateEl.value) ? bDateEl.value : bDate;
+        var bTimeVal = (bTimeEl && bTimeEl.value) ? bTimeEl.value : "12:00";
+        var bLatVal = (bLatEl && bLatEl.value) ? bLatEl.value : lat;
+        var bLonVal = (bLonEl && bLonEl.value) ? bLonEl.value : lon;
+
+        var reqB = {
+          datetime_local: bDateVal + " " + bTimeVal,
+          timezone: tz,
+          location: { lat: parseFloat(bLatVal), lon: parseFloat(bLonVal), elevation_m: 0 },
+          asteroids: asteroidIdList,
+          star_scope: starScope,
+          star_method: starMethod,
+          house_system: h1
+        };
+
+        // Fetch Chart A and Chart B concurrently
+        var resArray = await Promise.all([
+          fetch('https://supernova-calc-engine.onrender.com/api/v1/natal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(baseReq)
+          }),
+          fetch('https://supernova-calc-engine.onrender.com/api/v1/natal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(reqB)
+          })
+        ]);
+
+        if (!resArray[0].ok || !resArray[1].ok) {
+          var errA = await resArray[0].text();
+          var errB = await resArray[1].text();
+          alert("BACKEND REASON (A): " + errA + "\nBACKEND REASON (B): " + errB);
+          throw new Error("One or both chart calculations failed.");
+        }
+
+        d1 = await resArray[0].json();
+        d2Data = await resArray[1].json();
+        d2Cusps = d2Data.houses;
+        h2Label = (window.snCurrentMode === "TWIN_COMPARE") ? "Twin B (" + bTimeVal + ")" : "Chart B";
+
+      } else {
+        // STANDARD MODE: Natal Dual-House Systems
+        var res1 = await fetch('https://supernova-calc-engine.onrender.com/api/v1/natal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(baseReq)
+        });
+        if (!res1.ok) {
+          var errBody = await res1.text();
+          alert("BACKEND REASON: " + errBody);
+          throw new Error("Primary API error: " + res1.status + " Details: " + errBody);
+        }
+        d1 = await res1.json();
+
+        if (h2Label) {
+          var req2 = Object.assign({}, baseReq, { house_system: h2 });
+          var res2 = await fetch('https://supernova-calc-engine.onrender.com/api/v1/natal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(req2)
+          });
+          if (res2.ok) {
+            var d2 = await res2.json();
+            d2Cusps = d2.houses;
+          }
+        }
+      }
     };
 
     var d1 = null;
