@@ -262,7 +262,7 @@ class ChartService:
         ]
 
         # Calculate if requested by user toggle
-        if getattr(request, "include_uranian", False) or False
+        if getattr(request, "include_uranian", False) or False:
             import swisseph as swe_calc
             for u_id, u_name in URANIAN_BODIES:
                 res, _ = swe_calc.calc_ut(tjd_ut, u_id, swe_calc.FLG_SWIEPH | swe_calc.FLG_SPEED)
