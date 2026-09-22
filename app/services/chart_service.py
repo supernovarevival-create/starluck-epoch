@@ -63,7 +63,7 @@ class ChartService:
             asteroids=requested_asteroids,
             swe_path=self.swe_path,
             star_scope=star_scope,
-            star_method=star_method
+            star_method=star_method,
             include_uranian=include_uranian
         )
 
