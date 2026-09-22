@@ -360,7 +360,7 @@
     var pGlyphs = {
       "Sun": "☉", "Moon": "☽", "Mercury": "☿", "Venus": "♀", "Mars": "♂",
       "Jupiter": "♃", "Saturn": "♄", "Uranus": "♅", "Neptune": "♆", "Pluto": "♇",
-      "TrueNode": "☊", "NorthNode": "☊", "SouthNode": "☋", "Chiron": "⚷", "BlackMoonLilith": "⚸"
+      "TrueNode": "☊", "NorthNode": "☊", "SouthNode": "☋", "Chiron": "⚷", "BlackMoonLilith": "⚸", "PartOfFortune": "⊗"
     };
 
     var svg = '<svg viewBox="0 0 ' + size + ' ' + size + '" style="width: 100%; height: auto; background: #0c0d14; border-radius: 50%; border: 1px solid #2d3348; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">';
