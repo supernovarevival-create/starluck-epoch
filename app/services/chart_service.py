@@ -243,7 +243,35 @@ class ChartService:
                         }
                 except Exception as ast_err:
                     print(f"Skipping asteroid {ast_id}: {ast_err}")
+        # -------------------------------------------------------------
+        # URANIAN / TRANS-NEPTUNIAN HYPOTHETICAL POINTS (IDs 40-47)
+        # -------------------------------------------------------------
+        URANIAN_BODIES = [
+            (40, "Cupido"),
+            (41, "Hades"),
+            (42, "Zeus"),
+            (43, "Kronos"),
+            (44, "Apollon"),
+            (45, "Admetos"),
+            (46, "Vulkanus"),
+            (47, "Poseidon")
+        ]
 
+        # Calculate if requested by user toggle
+        if getattr(request, "include_uranian", False):
+            import swisseph as swe_calc
+            for u_id, u_name in URANIAN_BODIES:
+                res, _ = swe_calc.calc_ut(tjd_ut, u_id, swe_calc.FLG_SWIEPH | swe_calc.FLG_SPEED)
+                u_lon = float(res[0])
+                s, d, _ = deg_to_signpos(u_lon)
+                planets[u_name] = {
+                    "lon": u_lon,
+                    "sign": s,
+                    "deg": d,
+                    "house": house_index_for_longitude(houses, u_lon),
+                    "retro": bool(res[3] < 0)
+                }
+                
         # -------------------------------------------------------------
         # FIXED STARS & COSMIC POINTS
         # -------------------------------------------------------------
@@ -452,7 +480,7 @@ class ChartService:
                             "orb": round(diff, 4),
                             "orb_formatted": f"{orb_deg}°{orb_min:02d}'"
                         })
-
+                                
         return {
             "datetime_utc": dt_utc.isoformat(),
             "location": {"lat": lat, "lon": lon_east, "tz": tz_name},
