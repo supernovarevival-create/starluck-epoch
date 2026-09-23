@@ -45,6 +45,7 @@ class ChartService:
 
         requested_asteroids = getattr(request, "asteroids", []) or []
         star_scope = getattr(request, "star_scope", "MAJOR_GC") or "MAJOR_GC"
+        include_uranian = getattr(request, "include_uranian", False) or False
 
         raw_star_method = getattr(request, "star_method", "STELLA_PARTILE") or "STELLA_PARTILE"
         if "COSMIC" in str(raw_star_method).upper():
