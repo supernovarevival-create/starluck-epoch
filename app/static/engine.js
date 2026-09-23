@@ -171,14 +171,14 @@
     } else if (mode === "TWIN_COMPARE") {
       if (bWrap) bWrap.style.display = "block";
       if (twinBar) twinBar.style.display = "flex";
-      if (bTitle) bTitle.textContent = "Twin / Chart B Details";
+      if (bTitle) bTitle.textContent = "Person B Details";
       if (bLoc) bLoc.style.display = "grid";
       if (h2Group) h2Group.style.display = "none";
       window.snSyncTwinLocation();
     } else if (mode === "SYNASTRY") {
       if (bWrap) bWrap.style.display = "block";
       if (twinBar) twinBar.style.display = "none";
-      if (bTitle) bTitle.textContent = "Partner / Chart B Details";
+      if (bTitle) bTitle.textContent = "Person B Details";
       if (bLoc) bLoc.style.display = "grid";
       if (h2Group) h2Group.style.display = "none";
     } else if (mode === "TRANSITS") {
@@ -565,7 +565,6 @@
     var d2Cusps = null;
     var d2Data = null;
 
-    var isTwinMode = (window.snCurrentMode === "TWIN_COMPARE");
     var isDualMode = (window.snCurrentMode === "TWIN_COMPARE" || window.snCurrentMode === "SYNASTRY" || window.snCurrentMode === "TRANSITS");
 
     try {
@@ -613,7 +612,7 @@
         d1 = await resArray[0].json();
         d2Data = await resArray[1].json();
         d2Cusps = d2Data.houses;
-        h2Label = isTwinMode ? ("Twin B (" + bTimeVal + ")") : "Chart B";
+        h2Label = "Person B (" + bTimeVal + ")";
 
       } else {
         var res1 = await fetch('https://supernova-calc-engine.onrender.com/api/v1/natal', {
@@ -673,9 +672,9 @@
       if (h2Label) raw += snPad("H (" + h2Label.substr(0,4) + ")", 12);
       raw += "\n----------------------------------------------------------------------\n";
 
-      var labelA = isTwinMode ? "Twin A" : "Person A";
-      var labelB = (window.snCurrentMode === "TRANSITS") ? "Transits" : 
-                   (window.snCurrentMode === "TWIN_COMPARE") ? "Twin B" : "Person B";
+      // UNIFIED LABELS: Always Person A & Person B
+      var labelA = "Person A";
+      var labelB = (window.snCurrentMode === "TRANSITS") ? "Transits" : "Person B";
 
       // 0. Sect & Overview Badges
       var overviewEl = document.getElementById("sn-display-overview");
@@ -728,18 +727,22 @@
         }
       }
 
-      // --- Chart Wheels ---
+      // --- Chart Wheels (Corrected Headings) ---
       var wheelsWrap = document.getElementById("sn-wheels-wrap");
       var wPrimEl = document.getElementById("sn-wheel-primary");
       var wSecEl = document.getElementById("sn-wheel-secondary");
 
       if (wheelsWrap && wPrimEl && (!isUnknown || knownRising !== "NONE")) {
         wheelsWrap.style.display = "block";
-        wPrimEl.innerHTML = snRenderWheelSVG(h1Label, d1.houses, d1.planets, d1.angles, isUnknown);
+        
+        var wheel1Title = isDualMode ? (labelA + " (" + h1Label + ")") : h1Label;
+        var wheel2Title = isDualMode ? (labelB + " (" + h1Label + ")") : h2Label;
 
-        if (d2Cusps && h2Label) {
+        wPrimEl.innerHTML = snRenderWheelSVG(wheel1Title, d1.houses, d1.planets, d1.angles, isUnknown);
+
+        if (d2Cusps && (isDualMode || h2Label)) {
           wSecEl.style.display = "block";
-          wSecEl.innerHTML = snRenderWheelSVG(h2Label, d2Cusps, (d2Data ? d2Data.planets : d1.planets), (d2Data ? d2Data.angles : d1.angles), isUnknown);
+          wSecEl.innerHTML = snRenderWheelSVG(wheel2Title, d2Cusps, (d2Data ? d2Data.planets : d1.planets), (d2Data ? d2Data.angles : d1.angles), isUnknown);
         } else {
           wSecEl.style.display = "none";
           wSecEl.innerHTML = "";
