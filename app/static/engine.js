@@ -835,6 +835,9 @@ window.snCurrentMode = "NATAL_DUAL";
           }
         }
       }
+    } catch (err) {
+      console.error("Engine error:", err);
+      }
     };
 
     var d1 = null;
