@@ -753,7 +753,7 @@ window.snCurrentMode = "NATAL_DUAL";
             d2Cusps = d2.houses;
           }
         }
-      }
+      };
 
     var d1 = null;
     var d2Cusps = null;
