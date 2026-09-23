@@ -1049,6 +1049,8 @@
       }
       
       // --- 6. ASPECTS ---
+      var aspBodies = {};
+      
       if (d1.planets) {
         Object.keys(d1.planets).forEach(function(k) {
           aspBodies[k] = d1.planets[k].lon;
