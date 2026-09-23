@@ -1048,8 +1048,10 @@
         }
       }
       
-      // --- 6. ADVANCED ASPECTS (SIDE-BY-SIDE & CATEGORIZED) ---
+      // --- 6. ADVANCED ASPECTS (SIDE-BY-SIDE, CATEGORIZED, & DYNAMIC ORBS) ---
       var aspElDisplay = document.getElementById('sn-display-aspects');
+      var orbMultEl = document.getElementById('sn-orb-multiplier');
+      var orbMultiplier = orbMultEl ? parseFloat(orbMultEl.value) : 1.25; // default 1.25x if not present
 
       // Helper: Extract aspect bodies dictionary
       var getAspectBodies = function(dataObj) {
@@ -1077,16 +1079,19 @@
         return bodies;
       };
 
-      // Helper: Structure aspects into detailed objects
-      var computeDetailedAspects = function(bodies, mode) {
+      // Helper: Structure aspects into detailed objects with dynamic orbs
+      var computeDetailedAspects = function(bodies, mode, mult) {
         var asps = [
-          { name: "Conjunction", glyph: "☌", angle: 0, orb: 8 },
-          { name: "Sextile", glyph: "⚹", angle: 60, orb: 5 },
-          { name: "Square", glyph: "□", angle: 90, orb: 7 },
-          { name: "Trine", glyph: "△", angle: 120, orb: 7 },
-          { name: "Opposition", glyph: "☍", angle: 180, orb: 8 }
+          { name: "Conjunction", glyph: "☌", angle: 0, orb: 8 * mult },
+          { name: "Sextile", glyph: "⚹", angle: 60, orb: 5 * mult },
+          { name: "Square", glyph: "□", angle: 90, orb: 7 * mult },
+          { name: "Trine", glyph: "△", angle: 120, orb: 7 * mult },
+          { name: "Opposition", glyph: "☍", angle: 180, orb: 8 * mult }
         ];
-        if (mode === "DEGREE_TIGHT") asps.forEach(function(a) { a.orb = 3; });
+
+        if (mode === "DEGREE_TIGHT") {
+          asps.forEach(function(a) { a.orb = 3 * mult; });
+        }
 
         var results = [];
         var keys = Object.keys(bodies);
@@ -1170,20 +1175,9 @@
         return html;
       };
 
-      // Helper: Render simple flat summary list
-      var renderSummaryAspects = function(aspectList) {
-        if (!aspectList || aspectList.length === 0) return '<div style="color:#94a3b8; font-style:italic;">No major aspects</div>';
-        var html = '<div style="display:flex; flex-direction:column; gap:3px; font-size:0.82rem;">';
-        aspectList.forEach(function(item) {
-          html += '<div>• ' + item.str + '</div>';
-        });
-        html += '</div>';
-        return html;
-      };
-
-      // Compute A and B
-      var aspListA = computeDetailedAspects(getAspectBodies(d1), aspStyle);
-      var aspListB = (isTwinMode && d2Data) ? computeDetailedAspects(getAspectBodies(d2Data), aspStyle) : null;
+      // Compute A and B with dynamic orb multiplier
+      var aspListA = computeDetailedAspects(getAspectBodies(d1), aspStyle, orbMultiplier);
+      var aspListB = (isTwinMode && d2Data) ? computeDetailedAspects(getAspectBodies(d2Data), aspStyle, orbMultiplier) : null;
 
       // Populate into DOM
       if (aspElDisplay) {
@@ -1202,6 +1196,58 @@
         } else {
           aspElDisplay.innerHTML = renderCategorizedAspects(aspListA);
         }
+      }
+
+      // =========================================================================
+      // COMPLETE PLAIN-TEXT PAYLOAD BUILDER (FOR COPY/PASTE BOX)
+      // =========================================================================
+      raw += "======================================================================\n";
+      raw += "PLANETARY PLACEMENTS\n";
+      raw += "======================================================================\n";
+      if (d1.planets) {
+        Object.keys(d1.planets).forEach(function(pName) {
+          var p = d1.planets[pName];
+          var retro = p.retro ? " (R)" : "";
+          var pLine = snPad(pName, 16) + snPad(window.snFormatZodiac(p.lon) + retro, 18) + snPad("House " + p.house, 12);
+          if (isTwinMode && d2Data && d2Data.planets && d2Data.planets[pName]) {
+            var pB = d2Data.planets[pName];
+            var retroB = pB.retro ? " (R)" : "";
+            pLine += " | Twin B: " + snPad(window.snFormatZodiac(pB.lon) + retroB, 18) + "House " + pB.house;
+          }
+          raw += pLine + "\n";
+        });
+      }
+
+      raw += "\n======================================================================\n";
+      raw += "ANGLES & HOUSE CUSPS\n";
+      raw += "======================================================================\n";
+      if (d1.angles) {
+        ["ASC", "MC", "DS", "IC"].forEach(function(ang) {
+          var line = snPad(ang, 16) + snPad(window.snFormatZodiac(d1.angles[ang]), 18);
+          if (isTwinMode && d2Data && d2Data.angles) {
+            line += " | Twin B: " + window.snFormatZodiac(d2Data.angles[ang]);
+          }
+          raw += line + "\n";
+        });
+      }
+      if (d1.houses) {
+        for (var h = 0; h < 12; h++) {
+          var hLine = snPad("House " + (h + 1), 16) + snPad(window.snFormatZodiac(d1.houses[h]), 18);
+          if (isTwinMode && d2Data && d2Data.houses) {
+            hLine += " | Twin B: " + window.snFormatZodiac(d2Data.houses[h]);
+          }
+          raw += hLine + "\n";
+        }
+      }
+
+      raw += "\n======================================================================\n";
+      raw += "MAJOR ASPECTS\n";
+      raw += "======================================================================\n";
+      raw += "--- Twin A Aspects ---\n";
+      aspListA.forEach(function(a) { raw += "• " + a.str + "\n"; });
+      if (isTwinMode && aspListB) {
+        raw += "\n--- Twin B Aspects ---\n";
+        aspListB.forEach(function(b) { raw += "• " + b.str + "\n"; });
       }
 
       var pBox = document.getElementById('sn-payload-box');
