@@ -719,6 +719,12 @@
       if (h2Label) raw += snPad("H (" + h2Label.substr(0,4) + ")", 12);
       raw += "\n----------------------------------------------------------------------\n";
 
+      // Dynamic Chart Labels
+      var isDualMode = (window.snCurrentMode === "TWIN_COMPARE" || window.snCurrentMode === "SYNASTRY" || window.snCurrentMode === "TRANSITS");
+      var labelA = "Person A";
+      var labelB = (window.snCurrentMode === "TRANSITS") ? "Transits" : 
+                   (window.snCurrentMode === "SYNASTRY") ? "Partner B" : "Person B";
+
       // 0. SECT & OVERVIEW BADGES
       var overviewEl = document.getElementById("sn-display-overview");
       if (overviewEl) {
@@ -726,15 +732,15 @@
         var color1 = (sect1 === "DAY") ? "#fbbf24" : "#818cf8";
         var icon1 = (sect1 === "DAY") ? "☀️" : "🌙";
 
-        if (isTwinMode && d2Data) {
+        if (isDualMode && d2Data) {
           var sect2 = d2Data.sect || "DAY";
           var color2 = (sect2 === "DAY") ? "#fbbf24" : "#818cf8";
           var icon2 = (sect2 === "DAY") ? "☀️" : "🌙";
 
           overviewEl.innerHTML = 
             '<div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">' +
-              '<span class="sn-meta-pill" style="border-color:' + color1 + '; color:' + color1 + ';">Twin A: ' + icon1 + ' <strong>' + sect1 + ' SECT</strong></span>' +
-              '<span class="sn-meta-pill" style="border-color:' + color2 + '; color:' + color2 + ';">Twin B: ' + icon2 + ' <strong>' + sect2 + ' SECT</strong></span>' +
+              '<span class="sn-meta-pill" style="border-color:' + color1 + '; color:' + color1 + ';">' + labelA + ': ' + icon1 + ' <strong>' + sect1 + ' SECT</strong></span>' +
+              '<span class="sn-meta-pill" style="border-color:' + color2 + '; color:' + color2 + ';">' + labelB + ': ' + icon2 + ' <strong>' + sect2 + ' SECT</strong></span>' +
               '<span class="sn-meta-pill">House System: <strong>' + h1Label + '</strong></span>' +
               '<span class="sn-meta-pill">Zodiac: <strong>' + zod + '</strong></span>' +
             '</div>';
@@ -759,47 +765,25 @@
                  '<div style="color:#94a3b8; font-size:0.8rem; margin-top:2px;">Illumination: ~' + illum + '% | Cycle Progress: ' + Math.round((pAngle / 360) * 100) + '%</div>';
         };
 
-        if (isTwinMode && d2Data && d2Data.moon_phase) {
+        if (isDualMode && d2Data && d2Data.moon_phase) {
           moonEl.innerHTML = 
             '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">' +
-              '<div>' + renderMoonCard(d1.moon_phase, "Twin A Moon") + '</div>' +
-              '<div>' + renderMoonCard(d2Data.moon_phase, "Twin B Moon") + '</div>' +
+              '<div>' + renderMoonCard(d1.moon_phase, labelA + " Moon") + '</div>' +
+              '<div>' + renderMoonCard(d2Data.moon_phase, labelB + " Moon") + '</div>' +
             '</div>';
         } else {
           moonEl.innerHTML = renderMoonCard(d1.moon_phase, "Phase");
         }
-      }
-      
-      // --- RENDER DUAL WHEELS ---
-      var wheelsWrap = document.getElementById("sn-wheels-wrap");
-      var wPrimEl = document.getElementById("sn-wheel-primary");
-      var wSecEl = document.getElementById("sn-wheel-secondary");
-
-      if (wheelsWrap && wPrimEl && (!isUnknown || knownRising !== "NONE")) {
-        wheelsWrap.style.display = "block";
-        wPrimEl.innerHTML = snRenderWheelSVG(h1Label, d1.houses, d1.planets, d1.angles, isUnknown);
-
-        if (d2Cusps && h2Label) {
-          wSecEl.style.display = "block";
-          var pToRender = (isTwinMode && d2Data) ? d2Data.planets : d1.planets;
-          var aToRender = (isTwinMode && d2Data) ? d2Data.angles : d1.angles;
-          wSecEl.innerHTML = snRenderWheelSVG(h2Label, d2Cusps, pToRender, aToRender, isUnknown);
-        } else {
-          wSecEl.style.display = "none";
-          wSecEl.innerHTML = "";
-        }
-      } else if (wheelsWrap) {
-        wheelsWrap.style.display = "none";
       }
 
       // --- 1. ANGLES & NODES ---
       var angContainer = document.getElementById('sn-display-angles');
       if (angContainer && d1.angles) {
         var angContent = "";
-        if (isTwinMode && d2Data && d2Data.angles) {
+        if (isDualMode && d2Data && d2Data.angles) {
           angContent += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px; font-weight:700; color:#2dd4bf; border-bottom:1px solid #2d3348; padding-bottom:4px;">';
-          angContent += '  <div>Twin A (' + (document.getElementById("sn-birthdate-time").value || "") + ')</div>';
-          angContent += '  <div>Twin B (' + (document.getElementById("sn-b-time").value || "") + ')</div>';
+          angContent += '  <div>' + labelA + ' (' + (document.getElementById("sn-birthdate-time").value || "") + ')</div>';
+          angContent += '  <div>' + labelB + ' (' + (document.getElementById("sn-b-time").value || "") + ')</div>';
           angContent += '</div>';
 
           ["ASC", "MC", "DS", "IC"].forEach(function(ang) {
@@ -833,10 +817,10 @@
       var plaContainer = document.getElementById('sn-display-planets');
       if (plaContainer && d1.planets) {
         var plaContent = "";
-        if (isTwinMode && d2Data && d2Data.planets) {
+        if (isDualMode && d2Data && d2Data.planets) {
           plaContent += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px; font-weight:700; color:#2dd4bf; border-bottom:1px solid #2d3348; padding-bottom:4px;">';
-          plaContent += '  <div>Twin A Placements</div>';
-          plaContent += '  <div>Twin B Placements</div>';
+          plaContent += '  <div>' + labelA + ' Placements</div>';
+          plaContent += '  <div>' + labelB + ' Placements</div>';
           plaContent += '</div>';
 
           Object.keys(d1.planets).forEach(function(pName) {
@@ -880,16 +864,16 @@
       // --- 3. ASTEROIDS ---
       var astBox = document.getElementById('sn-display-asteroids');
       var astData1 = d1.asteroids || {};
-      var astData2 = (isTwinMode && d2Data) ? (d2Data.asteroids || {}) : null;
+      var astData2 = (isDualMode && d2Data) ? (d2Data.asteroids || {}) : null;
       var activeList = window.snActive || [];
 
       if (astBox) {
         if (activeList.length === 0) {
           astBox.innerHTML = '<span style="color:#64748b;">No asteroids selected</span>';
-        } else if (isTwinMode && astData2) {
+        } else if (isDualMode && astData2) {
           var astHtml = '<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px; font-weight:700; color:#2dd4bf; border-bottom:1px solid #2d3348; padding-bottom:4px;">';
-          astHtml += '  <div>Twin A Asteroids</div>';
-          astHtml += '  <div>Twin B Asteroids</div>';
+          astHtml += '  <div>' + labelA + ' Asteroids</div>';
+          astHtml += '  <div>' + labelB + ' Asteroids</div>';
           astHtml += '</div>';
 
           activeList.forEach(function(item) {
@@ -898,14 +882,12 @@
             var aObj2 = astData2[aId] || astData2[String(aId)];
 
             var row1 = "—", row2 = "—";
-
             if (aObj1) {
               var lon1 = window.snAdjustToZodiac(aObj1.lon, zod, ayan);
               var h1Num = snDetermineHouse(lon1, d1.houses);
               var retro1 = aObj1.retro ? ' <span style="color:#f87171;">(R)</span>' : '';
               row1 = '<strong>' + item.name + ':</strong> ' + window.snFormatZodiac(lon1) + retro1 + ' (H' + h1Num + ')';
             }
-
             if (aObj2) {
               var lon2 = window.snAdjustToZodiac(aObj2.lon, zod, ayan);
               var h2Num = snDetermineHouse(lon2, d2Data.houses);
@@ -918,10 +900,8 @@
             astHtml += '  <div>' + row2 + '</div>';
             astHtml += '</div>';
           });
-
           astBox.innerHTML = astHtml;
         } else {
-          // Standard single chart asteroid list
           var singleAstHtml = "";
           activeList.forEach(function(item) {
             var aId = parseInt(item.id);
@@ -943,7 +923,7 @@
       var starsBox = document.getElementById("sn-display-stars");
       var starsHeading = document.getElementById("sn-stars-heading");
       var listA = (d1 && d1.fixed_stars) ? d1.fixed_stars : [];
-      var listB = (isTwinMode && d2Data && d2Data.fixed_stars) ? d2Data.fixed_stars : [];
+      var listB = (isDualMode && d2Data && d2Data.fixed_stars) ? d2Data.fixed_stars : [];
 
       var formatStarList = function(stars) {
         if (!stars || stars.length === 0) return '<div style="color:#94a3b8; font-style:italic;">No conjunctions within orb</div>';
@@ -958,21 +938,15 @@
         if (starsHeading) starsHeading.style.display = "block";
         if (starsBox) {
           starsBox.style.display = "block";
-          if (isTwinMode && d2Data) {
+          if (isDualMode && d2Data) {
             starsBox.innerHTML = 
               '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">' +
-                '<div><div style="font-weight:700; color:#2dd4bf; margin-bottom:6px; border-bottom:1px solid #2d3348; padding-bottom:2px;">Twin A Conjunctions</div>' + formatStarList(listA) + '</div>' +
-                '<div><div style="font-weight:700; color:#2dd4bf; margin-bottom:6px; border-bottom:1px solid #2d3348; padding-bottom:2px;">Twin B Conjunctions</div>' + formatStarList(listB) + '</div>' +
+                '<div><div style="font-weight:700; color:#2dd4bf; margin-bottom:6px; border-bottom:1px solid #2d3348; padding-bottom:2px;">' + labelA + ' Conjunctions</div>' + formatStarList(listA) + '</div>' +
+                '<div><div style="font-weight:700; color:#2dd4bf; margin-bottom:6px; border-bottom:1px solid #2d3348; padding-bottom:2px;">' + labelB + ' Conjunctions</div>' + formatStarList(listB) + '</div>' +
               '</div>';
           } else {
             starsBox.innerHTML = formatStarList(listA);
           }
-        }
-      } else {
-        if (starsHeading) starsHeading.style.display = "none";
-        if (starsBox) {
-          starsBox.innerHTML = "";
-          starsBox.style.display = "none";
         }
       }
 
@@ -980,10 +954,10 @@
       var cuspContainer = document.getElementById('sn-display-houses');
       if (cuspContainer && d1.houses) {
         var cuspContent = "";
-        if (isTwinMode && d2Data && d2Data.houses) {
+        if (isDualMode && d2Data && d2Data.houses) {
           cuspContent += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px; font-weight:700; color:#2dd4bf; border-bottom:1px solid #2d3348; padding-bottom:4px;">';
-          cuspContent += '  <div>Twin A Cusps (' + h1 + ')</div>';
-          cuspContent += '  <div>Twin B Cusps (' + h1 + ')</div>';
+          cuspContent += '  <div>' + labelA + ' Cusps (' + h1 + ')</div>';
+          cuspContent += '  <div>' + labelB + ' Cusps (' + h1 + ')</div>';
           cuspContent += '</div>';
 
           for (var i = 0; i < 12; i++) {
@@ -1037,11 +1011,11 @@
 
         wrapEl.style.display = "block";
 
-        if (isTwinMode && d2Data) {
+        if (isDualMode && d2Data) {
           dispEl.innerHTML = 
             '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">' +
-              '<div>' + formatInterceptSummary(d1, "Twin A Axis") + '</div>' +
-              '<div>' + formatInterceptSummary(d2Data, "Twin B Axis") + '</div>' +
+              '<div>' + formatInterceptSummary(d1, labelA + " Axis") + '</div>' +
+              '<div>' + formatInterceptSummary(d2Data, labelB + " Axis") + '</div>' +
             '</div>';
         } else {
           dispEl.innerHTML = formatInterceptSummary(d1, "Chart Axis");
@@ -1181,15 +1155,15 @@
 
       // Populate into DOM
       if (aspElDisplay) {
-        if (isTwinMode && aspListB) {
+        if (isDualMode && aspListB) {
           aspElDisplay.innerHTML = 
             '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">' +
               '<div>' +
-                '<div style="color:#2dd4bf; font-weight:700; margin-bottom:8px; border-bottom:1px solid #2d3348; padding-bottom:4px;">Twin A Aspects (' + aspListA.length + ')</div>' +
+                '<div style="color:#2dd4bf; font-weight:700; margin-bottom:8px; border-bottom:1px solid #2d3348; padding-bottom:4px;">' + labelA + ' Aspects (' + aspListA.length + ')</div>' +
                 renderCategorizedAspects(aspListA) +
               '</div>' +
               '<div>' +
-                '<div style="color:#2dd4bf; font-weight:700; margin-bottom:8px; border-bottom:1px solid #2d3348; padding-bottom:4px;">Twin B Aspects (' + aspListB.length + ')</div>' +
+                '<div style="color:#2dd4bf; font-weight:700; margin-bottom:8px; border-bottom:1px solid #2d3348; padding-bottom:4px;">' + labelB + ' Aspects (' + aspListB.length + ')</div>' +
                 renderCategorizedAspects(aspListB) +
               '</div>' +
             '</div>';
