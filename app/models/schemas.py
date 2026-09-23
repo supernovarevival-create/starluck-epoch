@@ -103,7 +103,7 @@ class NatalChartResponse(BaseModel):
     sect: Optional[str] = "DAY"
     intercepted_signs: Optional[List[str]] = []
     cusp_signs: Optional[List[str]] = []
-    house_signs: Optional[List[Dict[str, Any]]] = None
+    house_signs: Optional[List[List[Dict[str, Any]]]] = None
 
 
 class SVGRequest(BaseModel):
