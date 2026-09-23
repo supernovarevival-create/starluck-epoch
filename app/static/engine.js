@@ -92,6 +92,9 @@
     if (ctr) ctr.textContent = window.snActive.length + " / 10 active";
   };
 
+  // =========================================================================
+  // GLOBAL ENGINE MODE CONTROLLER
+  // =========================================================================
   window.snCurrentMode = "NATAL_DUAL";
 
   window.snSyncTwinLocation = function() {
@@ -131,16 +134,16 @@
 
   window.snSetEngineMode = function(mode) {
     window.snCurrentMode = mode;
-    console.log("[Supernova] Engine mode active:", mode);
+    console.log("[Supernova] Engine mode changed to:", mode);
 
     var bWrap = document.getElementById("sn-chart-b-wrap");
     var twinBar = document.getElementById("sn-twin-quick-bar");
     var bTitle = document.getElementById("sn-chart-b-title");
     var bLoc = document.getElementById("sn-b-location-wrap");
-    var h2El = document.getElementById("sn-houses-2");
-    var h2Group = h2El ? h2El.closest("div") : null;
+    var h2Group = document.getElementById("sn-houses-2") ? document.getElementById("sn-houses-2").closest("div") : null;
 
-    document.querySelectorAll(".sn-mode-btn").forEach(function(btn) {
+    var buttons = document.querySelectorAll(".sn-mode-btn");
+    buttons.forEach(function(btn) {
       btn.style.background = "transparent";
       btn.style.color = "#94a3b8";
     });
@@ -165,14 +168,14 @@
     } else if (mode === "TWIN_COMPARE") {
       if (bWrap) bWrap.style.display = "block";
       if (twinBar) twinBar.style.display = "flex";
-      if (bTitle) bTitle.textContent = "Twin / Second Chart Details";
+      if (bTitle) bTitle.textContent = "Twin / Chart B Details";
       if (bLoc) bLoc.style.display = "grid";
       if (h2Group) h2Group.style.display = "none";
       window.snSyncTwinLocation();
     } else if (mode === "SYNASTRY") {
       if (bWrap) bWrap.style.display = "block";
       if (twinBar) twinBar.style.display = "none";
-      if (bTitle) bTitle.textContent = "Partner / Second Chart Details";
+      if (bTitle) bTitle.textContent = "Partner / Chart B Details";
       if (bLoc) bLoc.style.display = "grid";
       if (h2Group) h2Group.style.display = "none";
     } else if (mode === "TRANSITS") {
@@ -308,6 +311,7 @@
           status.style.color = "#4ade80";
         }
         if (btn) btn.textContent = "Find City";
+        if (typeof window.snSyncTwinLocation === "function") window.snSyncTwinLocation();
         return;
       }
     } catch (e) {
@@ -433,6 +437,7 @@
     return res;
   }
 
+  // --- SVG CHART WHEEL GENERATOR ---
   function snRenderWheelSVG(title, houses, planets, angles, isUnknown) {
     if (!houses || houses.length !== 12) return "";
 
@@ -464,11 +469,13 @@
 
     var svg = '<svg viewBox="0 0 ' + size + ' ' + size + '" style="width: 100%; height: auto; background: #0c0d14; border-radius: 50%; border: 1px solid #2d3348; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">';
     
+    // Concentric Guide Rings
     svg += '<circle cx="' + center + '" cy="' + center + '" r="' + rOuter + '" fill="none" stroke="#2d3348" stroke-width="1.5" />';
     svg += '<circle cx="' + center + '" cy="' + center + '" r="' + rZodiac + '" fill="#12131a" stroke="#2d3348" stroke-width="1" />';
     svg += '<circle cx="' + center + '" cy="' + center + '" r="' + rHouses + '" fill="#181a24" stroke="#2d3348" stroke-width="1" />';
     svg += '<circle cx="' + center + '" cy="' + center + '" r="' + rInner + '" fill="#0c0d14" stroke="#2d3348" stroke-width="1" />';
 
+    // 12 Zodiac Sign Segments
     for (var i = 0; i < 12; i++) {
       var sDeg = i * 30;
       var p1 = degToXY(sDeg, rOuter);
@@ -479,6 +486,7 @@
       svg += '<text x="' + midPos.x + '" y="' + (parseFloat(midPos.y) + 5) + '" text-anchor="middle" font-size="14" fill="' + zColors[i] + '">' + zGlyphs[i] + '</text>';
     }
 
+    // 12 House Cusps & Division Lines
     for (var h = 0; h < 12; h++) {
       var cusp = houses[h];
       var hp1 = degToXY(cusp, rZodiac);
@@ -487,6 +495,7 @@
       var strokeW = (h === 0 || h === 6 || h === 3 || h === 9) ? "1.8" : "0.7";
       svg += '<line x1="' + hp1.x + '" y1="' + hp1.y + '" x2="' + hp2.x + '" y2="' + hp2.y + '" stroke="' + strokeColor + '" stroke-width="' + strokeW + '" />';
 
+      // House Number Labels
       var nextCusp = houses[(h + 1) % 12];
       var diff = (nextCusp - cusp + 360) % 360;
       var hMidDeg = (cusp + (diff / 2)) % 360;
@@ -494,6 +503,7 @@
       svg += '<text x="' + numPos.x + '" y="' + (parseFloat(numPos.y) + 4) + '" text-anchor="middle" font-size="9" font-family="monospace" fill="#64748b">' + (h + 1) + '</text>';
     }
 
+    // Plot Planetary Glyphs
     if (planets) {
       var pKeys = Object.keys(planets);
       pKeys.forEach(function(pName) {
@@ -505,13 +515,14 @@
       });
     }
 
+    // Horizontal Ascendant Marker Line
     var ascP1 = degToXY(ascDeg, rOuter + 8);
     svg += '<line x1="' + ascP1.x + '" y1="' + ascP1.y + '" x2="' + degToXY(ascDeg, rZodiac).x + '" y2="' + degToXY(ascDeg, rZodiac).y + '" stroke="#2dd4bf" stroke-width="2.5" />';
     svg += '<text x="18" y="' + (center + 4) + '" font-size="10" font-family="sans-serif" font-weight="700" fill="#2dd4bf">ASC</text>';
 
     svg += '</svg>';
     return '<div style="font-size: 0.8rem; font-weight:600; color:#2dd4bf; margin-bottom:8px;">' + title + '</div>' + svg;
-  }
+  };
 
   // --- MAIN PLACEMENT ENGINE ---
   window.snCalculatePlacements = async function() {
@@ -597,10 +608,11 @@
     var d1 = null;
     var d2Cusps = null;
     var d2Data = null;
+
     var isTwinMode = (window.snCurrentMode === "TWIN_COMPARE");
 
     try {
-      if (window.snCurrentMode === "TWIN_COMPARE" || window.snCurrentMode === "SYNASTRY" || window.snCurrentMode === "TRANSITS") {
+      if (isTwinMode || window.snCurrentMode === "SYNASTRY" || window.snCurrentMode === "TRANSITS") {
         var bDateEl = document.getElementById("sn-b-date");
         var bTimeEl = document.getElementById("sn-b-time");
         var bLatEl = document.getElementById("sn-b-lat");
@@ -644,10 +656,9 @@
         d1 = await resArray[0].json();
         d2Data = await resArray[1].json();
         d2Cusps = d2Data.houses;
-        h2Label = isTwinMode ? ("Twin B (" + bTimeVal + ")") : "Chart B";
+        h2Label = isTwinMode ? "Twin B (" + bTimeVal + ")" : "Chart B";
 
       } else {
-        // STANDARD MODE: Natal Dual-House Systems
         var res1 = await fetch('https://supernova-calc-engine.onrender.com/api/v1/natal', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -683,6 +694,9 @@
         h1Label = "Whole Sign (" + knownRising + " Rising)";
       }
 
+      // -------------------------------------------------------------
+      // PLAIN-TEXT BUILDER (FOR COPY/PASTE PAYLOAD BOX)
+      // -------------------------------------------------------------
       var raw = "";
       raw += "Zodiac System:    " + zod + (zod === 'SIDEREAL' ? " (Ayanamsa " + ayan + ")" : "") + "\n";
       raw += "Primary System:   " + h1Label + "\n";
@@ -702,7 +716,7 @@
       if (h2Label) raw += snPad("H (" + h2Label.substr(0,4) + ")", 12);
       raw += "\n----------------------------------------------------------------------\n";
 
-      // 0. Sect & Overview Badges
+      // 0. SECT & OVERVIEW BADGES
       var overviewEl = document.getElementById("sn-display-overview");
       if (overviewEl) {
         var sectName = d1.sect || "DAY";
@@ -715,7 +729,7 @@
           '<span class="sn-meta-pill">Zodiac: <strong>' + zod + '</strong></span>';
       }
 
-      // 0b. Moon Phase
+      // 0b. MOON PHASE
       var moonEl = document.getElementById("sn-display-moon");
       if (moonEl && d1.moon_phase) {
         var pAngle = Math.round(d1.moon_phase.angle || 0);
@@ -726,7 +740,7 @@
           '<div style="color:#94a3b8; font-size:0.8rem; margin-top:2px;">Illumination: ~' + illum + '% | Lunar Cycle Progress: ' + Math.round((pAngle / 360) * 100) + '%</div>';
       }
 
-      // Wheels
+      // --- RENDER DUAL WHEELS ---
       var wheelsWrap = document.getElementById("sn-wheels-wrap");
       var wPrimEl = document.getElementById("sn-wheel-primary");
       var wSecEl = document.getElementById("sn-wheel-secondary");
@@ -737,7 +751,9 @@
 
         if (d2Cusps && h2Label) {
           wSecEl.style.display = "block";
-          wSecEl.innerHTML = snRenderWheelSVG(h2Label, d2Cusps, d1.planets, d1.angles, isUnknown);
+          var pToRender = (isTwinMode && d2Data) ? d2Data.planets : d1.planets;
+          var aToRender = (isTwinMode && d2Data) ? d2Data.angles : d1.angles;
+          wSecEl.innerHTML = snRenderWheelSVG(h2Label, d2Cusps, pToRender, aToRender, isUnknown);
         } else {
           wSecEl.style.display = "none";
           wSecEl.innerHTML = "";
@@ -746,14 +762,10 @@
         wheelsWrap.style.display = "none";
       }
 
-      var astHtml = "";
-      var aspBodies = {};
-
-      // 1. Angles & Nodes
+      // --- 1. ANGLES & NODES ---
       var angContainer = document.getElementById('sn-display-angles');
       if (angContainer && d1.angles) {
         var angContent = "";
-
         if (isTwinMode && d2Data && d2Data.angles) {
           angContent += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px; font-weight:700; color:#2dd4bf; border-bottom:1px solid #2d3348; padding-bottom:4px;">';
           angContent += '  <div>Twin A (' + (document.getElementById("sn-birthdate-time").value || "") + ')</div>';
@@ -787,11 +799,10 @@
         angContainer.innerHTML = angContent;
       }
       
-      // 2. Planetary Bodies
+      // --- 2. PLANETARY BODIES ---
       var plaContainer = document.getElementById('sn-display-planets');
       if (plaContainer && d1.planets) {
         var plaContent = "";
-
         if (isTwinMode && d2Data && d2Data.planets) {
           plaContent += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px; font-weight:700; color:#2dd4bf; border-bottom:1px solid #2d3348; padding-bottom:4px;">';
           plaContent += '  <div>Twin A Placements</div>';
@@ -816,8 +827,6 @@
             plaContent += '  <div><strong>' + dispName + ':</strong> ' + window.snFormatZodiac(pA.lon) + retroA + ' (<span style="' + hStyleA + '">H' + houseA + '</span>)</div>';
             plaContent += '  <div><strong>' + dispName + ':</strong> ' + (pB ? window.snFormatZodiac(pB.lon) + retroB + ' (<span style="' + hStyleB + '">H' + houseB + '</span>)' : '—') + '</div>';
             plaContent += '</div>';
-
-            aspBodies[pName] = pA.lon;
           });
         } else {
           Object.keys(d1.planets).forEach(function(pName) {
@@ -833,18 +842,19 @@
             }
             var dispName = (pName === "BlackMoonLilith") ? "Black Moon Lilith" : (pName === "PartOfFortune" ? "Part of Fortune" : pName);
             plaContent += '<div><strong>' + dispName + ':</strong> ' + window.snFormatZodiac(p.lon) + retroBadge + dualTag + '</div>';
-            aspBodies[pName] = p.lon;
           });
         }
         plaContainer.innerHTML = plaContent;
       }
 
-      // 3. Asteroids
-      raw += "\n--- Asteroids ---\n";
+      // --- 3. ASTEROIDS ---
+      var astHtml = "";
+      var aspBodies = {};
       var astData = d1.asteroids || {};
       var astKeys = Object.keys(astData);
       
       if (astKeys.length > 0) {
+        raw += "\n--- Asteroids ---\n";
         for (var i = 0; i < astKeys.length; i++) {
           var aKey = astKeys[i];
           var aObj = astData[aKey];
@@ -870,7 +880,7 @@
       var astBox = document.getElementById('sn-display-asteroids');
       if (astBox) astBox.innerHTML = astHtml || '<span style="color:#64748b;">None calculated</span>';
 
-      // 4. Fixed Stars & Cosmic Points
+      // --- 4. FIXED STARS & COSMIC POINTS ---
       var starsBox = document.getElementById("sn-display-stars");
       var starsHeading = document.getElementById("sn-stars-heading");
       var starsList = (d1 && d1.fixed_stars) ? d1.fixed_stars : [];
@@ -899,11 +909,10 @@
         }
       }
 
-      // 5. House Cusps
+      // --- 5. HOUSE CUSPS ---
       var cuspContainer = document.getElementById('sn-display-houses');
       if (cuspContainer && d1.houses) {
         var cuspContent = "";
-
         if (isTwinMode && d2Data && d2Data.houses) {
           cuspContent += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px; font-weight:700; color:#2dd4bf; border-bottom:1px solid #2d3348; padding-bottom:4px;">';
           cuspContent += '  <div>Twin A Cusps (' + h1 + ')</div>';
@@ -933,7 +942,7 @@
         cuspContainer.innerHTML = cuspContent;
       }
 
-      // 5b. Intercepted Signs
+      // --- 5b. INTERCEPTED SIGNS & DUPLICATED AXES ---
       var wrapEl = document.getElementById("sn-intercepts-wrap");
       var dispEl = document.getElementById("sn-display-intercepts");
 
@@ -946,15 +955,14 @@
 
         if (intercepts.length > 0 || duplicated.length > 0) {
           wrapEl.style.display = "block";
-          var outSignStr = "";
-          
+          var interceptHtml = "";
           if (intercepts.length > 0) {
-            outSignStr += "<div><strong>Intercepted Signs:</strong> " + intercepts.join(", ") + " (contained entirely within a house without a cusp)</div>";
+            interceptHtml += "<div><strong>Intercepted Signs:</strong> " + intercepts.join(", ") + " (contained entirely within a house without a cusp)</div>";
           }
           if (duplicated.length > 0) {
-            outSignStr += "<div><strong>Duplicated Signs:</strong> " + duplicated.join(", ") + " (rule more than one house cusp)</div>";
+            interceptHtml += "<div><strong>Duplicated Signs:</strong> " + duplicated.join(", ") + " (rule more than one house cusp)</div>";
           }
-          dispEl.innerHTML = outSignStr;
+          dispEl.innerHTML = interceptHtml;
         } else {
           if (h1 === "WHOLE" || h1 === "EQUAL") {
             wrapEl.style.display = "none";
@@ -965,7 +973,12 @@
         }
       }
 
-      // 6. Aspects
+      // --- 6. ASPECTS ---
+      if (d1.planets) {
+        Object.keys(d1.planets).forEach(function(k) {
+          aspBodies[k] = d1.planets[k].lon;
+        });
+      }
       var asps = snFindAspects(aspBodies, aspStyle);
       var aspHtml = "";
       if (asps.length > 0) {
@@ -984,7 +997,7 @@
       if (out) out.style.display = "block";
 
     } catch (err) {
-      alert("Calculation timed out or instance is waking up. Please wait 10 seconds and try once more.");
+      alert("Calculation error: " + err.message);
       console.error(err);
     } finally {
       if (loading) loading.style.display = "none";
