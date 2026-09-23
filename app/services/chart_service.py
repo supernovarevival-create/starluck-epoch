@@ -80,6 +80,9 @@ class ChartService:
             aspects=chart_data["aspects"],
             moon_phase=chart_data["moon_phase"],
             sect=chart_data["sect"]
+            intercepted_signs=chart_data.get("intercepted_signs", []),
+            cusp_signs=chart_data.get("cusp_signs", []),
+            house_signs=chart_data.get("house_signs", None)
         )
 
     def _compute_natal_chart(self, dt_local: datetime, lat: float, lon_east: float, tz_name: str,
