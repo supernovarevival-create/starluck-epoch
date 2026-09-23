@@ -1048,39 +1048,161 @@
         }
       }
       
-      // --- 6. ASPECTS ---
-      var aspBodies = {};
-      
-      if (d1.planets) {
-        Object.keys(d1.planets).forEach(function(k) {
-          aspBodies[k] = d1.planets[k].lon;
-        });
-      }
-      var asps = snFindAspects(aspBodies, aspStyle);
-      var aspHtml = "";
-      if (asps.length > 0) {
-        asps.forEach(function(item) { aspHtml += '<div>' + item + '</div>'; });
-      } else {
-        aspHtml = '<span style="color:#94a3b8;">No major aspects within chosen orbs</span>';
-      }
-
+      // --- 6. ADVANCED ASPECTS (SIDE-BY-SIDE & CATEGORIZED) ---
       var aspElDisplay = document.getElementById('sn-display-aspects');
-      var pBox = document.getElementById('sn-payload-box');
 
-      if (aspElDisplay) aspElDisplay.innerHTML = aspHtml;
-      if (pBox) pBox.value = raw;
+      // Helper: Extract aspect bodies dictionary
+      var getAspectBodies = function(dataObj) {
+        var bodies = {};
+        if (dataObj && dataObj.planets) {
+          Object.keys(dataObj.planets).forEach(function(k) {
+            if (k === "TrueNode") bodies["North Node"] = dataObj.planets[k].lon;
+            else if (k === "BlackMoonLilith") bodies["Lilith"] = dataObj.planets[k].lon;
+            else if (k === "PartOfFortune") bodies["Fortune"] = dataObj.planets[k].lon;
+            else bodies[k] = dataObj.planets[k].lon;
+          });
+        }
+        if (dataObj && dataObj.angles && dataObj.angles.ASC !== undefined) {
+          bodies["Ascendant"] = dataObj.angles.ASC;
+          bodies["Midheaven"] = dataObj.angles.MC;
+        }
+        if (dataObj && dataObj.asteroids) {
+          Object.keys(dataObj.asteroids).forEach(function(k) {
+            var a = dataObj.asteroids[k];
+            var mAst = (window.snActive || []).find(function(item) { return item.id === parseInt(a.id || k); });
+            var name = mAst ? mAst.name : ("Asteroid " + (a.id || k));
+            bodies[name] = a.lon;
+          });
+        }
+        return bodies;
+      };
 
-      if (disp) disp.style.display = "block";
-      if (out) out.style.display = "block";
+      // Helper: Structure aspects into detailed objects
+      var computeDetailedAspects = function(bodies, mode) {
+        var asps = [
+          { name: "Conjunction", glyph: "☌", angle: 0, orb: 8 },
+          { name: "Sextile", glyph: "⚹", angle: 60, orb: 5 },
+          { name: "Square", glyph: "□", angle: 90, orb: 7 },
+          { name: "Trine", glyph: "△", angle: 120, orb: 7 },
+          { name: "Opposition", glyph: "☍", angle: 180, orb: 8 }
+        ];
+        if (mode === "DEGREE_TIGHT") asps.forEach(function(a) { a.orb = 3; });
 
-    } catch (err) {
-      alert("Calculation error: " + err.message);
-      console.error(err);
-    } finally {
-      if (loading) loading.style.display = "none";
-    }
-  };
+        var results = [];
+        var keys = Object.keys(bodies);
+        for (var i = 0; i < keys.length; i++) {
+          for (var j = i + 1; j < keys.length; j++) {
+            var b1 = keys[i], b2 = keys[j];
+            var l1 = bodies[b1], l2 = bodies[b2];
+            var diff = Math.abs(l1 - l2) % 360;
+            if (diff > 180) diff = 360 - diff;
 
+            if (mode === "SIGN_BASED") {
+              var s1 = Math.floor(l1 / 30), s2 = Math.floor(l2 / 30);
+              var sDiff = Math.abs(s1 - s2);
+              if (sDiff > 6) sDiff = 12 - sDiff;
+              var aName = null;
+              if (sDiff === 0) aName = "Conjunction";
+              else if (sDiff === 2) aName = "Sextile";
+              else if (sDiff === 3) aName = "Square";
+              else if (sDiff === 4) aName = "Trine";
+              else if (sDiff === 6) aName = "Opposition";
+              if (aName) {
+                results.push({ b1: b1, b2: b2, aspect: aName, orb: 0, str: b1 + " " + aName + " " + b2 + " (Whole Sign)" });
+              }
+            } else {
+              for (var a = 0; a < asps.length; a++) {
+                var asp = asps[a];
+                var orbActual = Math.abs(diff - asp.angle);
+                if (orbActual <= asp.orb) {
+                  results.push({
+                    b1: b1,
+                    b2: b2,
+                    aspect: asp.name,
+                    glyph: asp.glyph,
+                    orb: orbActual,
+                    str: b1 + " " + asp.glyph + " " + asp.name + " " + b2 + " (" + orbActual.toFixed(1) + "°)"
+                  });
+                  break;
+                }
+              }
+            }
+          }
+        }
+        return results;
+      };
+
+      // Helper: Categorize aspects under each primary planet
+      var renderCategorizedAspects = function(aspectList) {
+        if (!aspectList || aspectList.length === 0) return '<div style="color:#94a3b8; font-style:italic;">No major aspects</div>';
+        
+        var primaryBodies = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto", "North Node", "Ascendant", "Midheaven"];
+        var grouped = {};
+        primaryBodies.forEach(function(b) { grouped[b] = []; });
+        grouped["Other / Asteroids"] = [];
+
+        aspectList.forEach(function(item) {
+          var placed = false;
+          primaryBodies.forEach(function(p) {
+            if (item.b1 === p || item.b2 === p) {
+              var partner = (item.b1 === p) ? item.b2 : item.b1;
+              grouped[p].push('<strong>' + (item.glyph || '') + ' ' + item.aspect + '</strong> ' + partner + ' <span style="color:#94a3b8; font-size:0.75rem;">(' + item.orb.toFixed(1) + '°)</span>');
+              placed = true;
+            }
+          });
+          if (!placed) {
+            grouped["Other / Asteroids"].push(item.str);
+          }
+        });
+
+        var html = '<div style="display:flex; flex-direction:column; gap:8px;">';
+        Object.keys(grouped).forEach(function(cat) {
+          if (grouped[cat].length > 0) {
+            html += '<div style="background:#11131c; border:1px solid #232736; border-radius:6px; padding:6px 10px;">';
+            html += '  <div style="color:#2dd4bf; font-weight:700; font-size:0.78rem; text-transform:uppercase; margin-bottom:4px;">' + cat + ' Aspects</div>';
+            grouped[cat].forEach(function(line) {
+              html += '  <div style="font-size:0.82rem; margin-bottom:2px; padding-left:4px;">• ' + line + '</div>';
+            });
+            html += '</div>';
+          }
+        });
+        html += '</div>';
+        return html;
+      };
+
+      // Helper: Render simple flat summary list
+      var renderSummaryAspects = function(aspectList) {
+        if (!aspectList || aspectList.length === 0) return '<div style="color:#94a3b8; font-style:italic;">No major aspects</div>';
+        var html = '<div style="display:flex; flex-direction:column; gap:3px; font-size:0.82rem;">';
+        aspectList.forEach(function(item) {
+          html += '<div>• ' + item.str + '</div>';
+        });
+        html += '</div>';
+        return html;
+      };
+
+      // Compute A and B
+      var aspListA = computeDetailedAspects(getAspectBodies(d1), aspStyle);
+      var aspListB = (isTwinMode && d2Data) ? computeDetailedAspects(getAspectBodies(d2Data), aspStyle) : null;
+
+      // Populate into DOM
+      if (aspElDisplay) {
+        if (isTwinMode && aspListB) {
+          aspElDisplay.innerHTML = 
+            '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">' +
+              '<div>' +
+                '<div style="color:#2dd4bf; font-weight:700; margin-bottom:8px; border-bottom:1px solid #2d3348; padding-bottom:4px;">Twin A Aspects (' + aspListA.length + ')</div>' +
+                renderCategorizedAspects(aspListA) +
+              '</div>' +
+              '<div>' +
+                '<div style="color:#2dd4bf; font-weight:700; margin-bottom:8px; border-bottom:1px solid #2d3348; padding-bottom:4px;">Twin B Aspects (' + aspListB.length + ')</div>' +
+                renderCategorizedAspects(aspListB) +
+              '</div>' +
+            '</div>';
+        } else {
+          aspElDisplay.innerHTML = renderCategorizedAspects(aspListA);
+        }
+      }
   window.snCopyPayload = function() {
     var box = document.getElementById('sn-payload-box');
     if (!box) return;
