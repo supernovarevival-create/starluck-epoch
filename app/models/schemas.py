@@ -101,6 +101,9 @@ class NatalChartResponse(BaseModel):
     aspects: Optional[List[Union[Aspect, Dict[str, Any], str]]] = []
     moon_phase: Optional[Dict[str, Any]] = {}
     sect: Optional[str] = "DAY"
+    intercepted_signs: Optional[List[str]] = []
+    cusp_signs: Optional[List[str]] = []
+    house_signs: Optional[List[Dict[str, Any]]] = None
 
 
 class SVGRequest(BaseModel):
