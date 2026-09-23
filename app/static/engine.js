@@ -527,7 +527,7 @@
 
     svg += '</svg>';
     return '<div style="font-size: 0.8rem; font-weight:600; color:#2dd4bf; margin-bottom:8px;">' + title + '</div>' + svg;
-  }
+  };
 
   // =========================================================================
   // STEP 3: ENGINE MODE SWITCHER & QUICK-SET HELPERS
