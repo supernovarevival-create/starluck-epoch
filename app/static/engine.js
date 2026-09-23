@@ -951,76 +951,96 @@ window.snCurrentMode = "NATAL_DUAL";
       var hseHtml = "";
       var aspBodies = {};
 
-      // 1. ANGLES & NODES
-      if (isUnknown && knownRising === "NONE") {
-        angHtml = '<div style="color: #94a3b8; font-style: italic;">Birth time unknown: Angles (ASC/MC) omitted; chart calculated using 12:00 PM solar defaults.</div>';
-      } else if (isUnknown && knownRising !== "NONE") {
-        var baseAsc = signOffsets[knownRising];
-        angHtml += '<div><strong>Ascendant (ASC):</strong> 0°00\' ' + knownRising + ' <span style="color:#2dd4bf; font-size:0.75rem;">(Derived Whole Sign)</span></div>';
-        angHtml += '<div><strong>Descendant (DS):</strong> 0°00\' ' + zSigns[(zSigns.indexOf(knownRising) + 6) % 12] + '</div>';
-        raw += snPad("Ascendant", 16) + snPad("0°00' " + knownRising, 18) + snPad("House 1", 12) + "\n";
-        aspBodies["Ascendant"] = baseAsc;
-      } else if (d1.angles) {
-        var ascDeg = window.snAdjustToZodiac(d1.angles.ASC, zod, ayan);
-        var dsDeg = window.snAdjustToZodiac(d1.angles.DS, zod, ayan);
-        var mcDeg = window.snAdjustToZodiac(d1.angles.MC, zod, ayan);
-        var icDeg = window.snAdjustToZodiac(d1.angles.IC, zod, ayan);
+// --- 1. ANGLES & NODES ---
+var angContainer = document.getElementById('sn-display-angles');
+if (angContainer && d1.angles) {
+  var angContent = "";
 
-        angHtml += '<div><strong>Ascendant (ASC):</strong> ' + window.snFormatZodiac(ascDeg) + '</div>';
-        angHtml += '<div><strong>Descendant (DS):</strong> ' + window.snFormatZodiac(dsDeg) + '</div>';
-        angHtml += '<div><strong>Midheaven (MC):</strong> ' + window.snFormatZodiac(mcDeg) + '</div>';
-        angHtml += '<div><strong>Imum Coeli (IC):</strong> ' + window.snFormatZodiac(icDeg) + '</div>';
+  if (isTwinMode && d2Data && d2Data.angles) {
+    // 1. IF IN TWIN MODE: Build the side-by-side 2-column grid
+    angContent += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px; font-weight:700; color:#2dd4bf; border-bottom:1px solid #2d3348; padding-bottom:4px;">';
+    angContent += '  <div>Twin A (' + (document.getElementById("sn-birthdate-time").value || "") + ')</div>';
+    angContent += '  <div>Twin B (' + (document.getElementById("sn-b-time").value || "") + ')</div>';
+    angContent += '</div>';
 
-        raw += snPad("Ascendant", 16) + snPad(window.snFormatZodiac(ascDeg), 18) + snPad("House 1", 12) + (h2Label ? snPad("House 1", 12) : "") + "\n";
-        raw += snPad("Descendant", 16) + snPad(window.snFormatZodiac(dsDeg), 18) + snPad("House 7", 12) + (h2Label ? snPad("House 7", 12) : "") + "\n";
-        raw += snPad("Midheaven", 16) + snPad(window.snFormatZodiac(mcDeg), 18) + snPad("House 10", 12) + (h2Label ? snPad("House 10", 12) : "") + "\n";
-        raw += snPad("Imum Coeli", 16) + snPad(window.snFormatZodiac(icDeg), 18) + snPad("House 4", 12) + (h2Label ? snPad("House 4", 12) : "") + "\n";
+    ["ASC", "MC", "DS", "IC"].forEach(function(ang) {
+      var lonA = d1.angles[ang];
+      var lonB = d2Data.angles[ang];
+      angContent += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 4px;">';
+      angContent += '  <div><strong>' + ang + ':</strong> ' + window.snFormatZodiac(lonA) + '</div>';
+      angContent += '  <div><strong>' + ang + ':</strong> ' + (lonB !== undefined ? window.snFormatZodiac(lonB) : "—") + '</div>';
+      angContent += '</div>';
+    });
 
-        aspBodies["Ascendant"] = ascDeg;
-        aspBodies["Midheaven"] = mcDeg;
-      }
+    if (d1.planets["TrueNode"] && d2Data.planets && d2Data.planets["TrueNode"]) {
+      angContent += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 4px;">';
+      angContent += '  <div><strong>True Node:</strong> ' + window.snFormatZodiac(d1.planets["TrueNode"].lon) + ' (H' + d1.planets["TrueNode"].house + ')</div>';
+      angContent += '  <div><strong>True Node:</strong> ' + window.snFormatZodiac(d2Data.planets["TrueNode"].lon) + ' (H' + d2Data.planets["TrueNode"].house + ')</div>';
+      angContent += '</div>';
+    }
+  } else {
+    // 2. OTHERWISE (NATAL DUAL-HOUSE MODE): Run the single-person layout as usual
+    angContent += '<div><strong>Ascendant (ASC):</strong> ' + window.snFormatZodiac(d1.angles.ASC) + '</div>';
+    angContent += '<div><strong>Midheaven (MC):</strong> ' + window.snFormatZodiac(d1.angles.MC) + '</div>';
+    angContent += '<div><strong>Descendant (DSC):</strong> ' + window.snFormatZodiac(d1.angles.DS) + '</div>';
+    angContent += '<div><strong>Imum Coeli (IC):</strong> ' + window.snFormatZodiac(d1.angles.IC) + '</div>';
+    if (d1.planets["TrueNode"]) {
+      angContent += '<div><strong>True North Node:</strong> ' + window.snFormatZodiac(d1.planets["TrueNode"].lon) + ' (House ' + d1.planets["TrueNode"].house + ')</div>';
+    }
+  }
 
-      // 2. PLANETARY BODIES & NODES
-      if (d1.planets) {
-        for (var pName in d1.planets) {
-          var pLon = window.snAdjustToZodiac(d1.planets[pName].lon, zod, ayan);
-          var retro = d1.planets[pName].retro ? ' (R)' : '';
-          var ph1 = snDetermineHouse(pLon, d1.houses);
-          var ph2 = d2Cusps ? snDetermineHouse(pLon, d2Cusps) : null;
-          var retroBadge = d1.planets[pName].retro ? ' <span style="color:#f87171; font-weight:bold;">(R)</span>' : '';
-          var dualTag = snFormatDualHouseBadge(ph1, h1Label, ph2, h2Label);
-          var displayName = (pName === "BlackMoonLilith") ? "Black Moon Lilith" : pName;
-          plaHtml += '<div><strong>' + displayName + ':</strong> ' + window.snFormatZodiac(pLon) + retroBadge + dualTag + '</div>';
+  angContainer.innerHTML = angContent;
+}
+      
+// --- 2. PLANETARY BODIES ---
+    var plaContainer = document.getElementById('sn-display-planets');
+    if (plaContainer && d1.planets) {
+      var plaContent = "";
 
-          if (pName === "TrueNode" || pName === "NorthNode") {
-            var nnLine = '<div><strong>North Node:</strong> ' + window.snFormatZodiac(pLon) + retroBadge + dualTag + '</div>';
-            angHtml += nnLine;
-            raw += snPad("NorthNode", 16) + snPad(window.snFormatZodiac(pLon) + retro, 18) + snPad("House " + ph1, 12);
-            if (h2Label) raw += snPad("House " + ph2, 12);
-            raw += "\n";
+      if (isTwinMode && d2Data && d2Data.planets) {
+        plaContent += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px; font-weight:700; color:#2dd4bf; border-bottom:1px solid #2d3348; padding-bottom:4px;">';
+        plaContent += '  <div>Twin A Placements</div>';
+        plaContent += '  <div>Twin B Placements</div>';
+        plaContent += '</div>';
 
-            var snLon = (pLon + 180) % 360;
-            var snh1 = snDetermineHouse(snLon, d1.houses);
-            var snh2 = d2Cusps ? snDetermineHouse(snLon, d2Cusps) : null;
-            var snTag = snFormatDualHouseBadge(snh1, h1Label, snh2, h2Label);
+        Object.keys(d1.planets).forEach(function(pName) {
+          if (pName === "TrueNode") return;
+          var pA = d1.planets[pName];
+          var pB = d2Data.planets[pName];
 
-            angHtml += '<div><strong>South Node:</strong> ' + window.snFormatZodiac(snLon) + retroBadge + snTag + '</div>';
-            raw += snPad("SouthNode", 16) + snPad(window.snFormatZodiac(snLon) + retro, 18) + snPad("House " + snh1, 12);
-            if (h2Label) raw += snPad("House " + snh2, 12);
-            raw += "\n";
+          var dispName = (pName === "BlackMoonLilith") ? "Lilith" : (pName === "PartOfFortune" ? "Fortune" : pName);
+          var retroA = pA.retro ? ' <span style="color:#f87171;font-size:0.75rem;">℞</span>' : '';
+          var retroB = (pB && pB.retro) ? ' <span style="color:#f87171;font-size:0.75rem;">℞</span>' : '';
 
-            aspBodies["NorthNode"] = pLon;
-            aspBodies["SouthNode"] = snLon;
+          var houseA = pA.house;
+          var houseB = pB ? pB.house : "—";
+          var hStyleA = (houseA !== houseB) ? 'color:#fbbf24; font-weight:700;' : '';
+          var hStyleB = (houseA !== houseB) ? 'color:#fbbf24; font-weight:700;' : '';
+
+          plaContent += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 4px; padding: 2px 0;">';
+          plaContent += '  <div><strong>' + dispName + ':</strong> ' + window.snFormatZodiac(pA.lon) + retroA + ' (<span style="' + hStyleA + '">H' + houseA + '</span>)</div>';
+          plaContent += '  <div><strong>' + dispName + ':</strong> ' + (pB ? window.snFormatZodiac(pB.lon) + retroB + ' (<span style="' + hStyleB + '">H' + houseB + '</span>)' : '—') + '</div>';
+          plaContent += '</div>';
+        });
+      } else {
+        // Your existing single-chart planetary loop
+        Object.keys(d1.planets).forEach(function(pName) {
+          if (pName === "TrueNode") return;
+          var p = d1.planets[pName];
+          var retroBadge = p.retro ? ' <span style="color:#f87171;font-size:0.75rem;">℞</span>' : '';
+          var dualTag = "";
+          if (d2Cusps) {
+            var h2Idx = window.snHouseIndex(d2Cusps, p.lon);
+            dualTag = ' <span style="color:#94a3b8;font-size:0.8rem;">(' + h1 + ': H' + p.house + ' | ' + h2Label + ': H' + h2Idx + ')</span>';
           } else {
-            raw += snPad(pName, 16) + snPad(window.snFormatZodiac(pLon) + retro, 18) + snPad("House " + ph1, 12);
-            if (h2Label) raw += snPad("House " + ph2, 12);
-            raw += "\n";
-
-            plaHtml += '<div><strong>' + pName + ':</strong> ' + window.snFormatZodiac(pLon) + retroBadge + dualTag + '</div>';
-            aspBodies[pName] = pLon;
+            dualTag = ' <span style="color:#94a3b8;font-size:0.8rem;">(House ' + p.house + ')</span>';
           }
-        }
+          var dispName = (pName === "BlackMoonLilith") ? "Black Moon Lilith" : (pName === "PartOfFortune" ? "Part of Fortune" : pName);
+          plaContent += '<div><strong>' + dispName + ':</strong> ' + window.snFormatZodiac(p.lon) + retroBadge + dualTag + '</div>';
+        });
       }
+      plaContainer.innerHTML = plaContent;
+    }
 
       // 3. ASTEROIDS
       raw += "\n--- Asteroids ---\n";
@@ -1083,40 +1103,77 @@ window.snCurrentMode = "NATAL_DUAL";
       }
 
       // 5. STACKED HOUSE CUSPS
-      if (Array.isArray(d1.houses) && (!isUnknown || knownRising !== "NONE")) {
-        hseHtml += '<div style="font-size:0.85rem; text-transform:uppercase; color:#2dd4bf; font-weight:700; margin-bottom:8px;">House Cusps (' + h1Label + ')</div>';
-        d1.houses.forEach(function(hDeg, idx) {
-          var sh1 = window.snAdjustToZodiac(hDeg, zod, ayan);
-          hseHtml += '<div>House ' + (idx + 1) + ': ' + window.snFormatZodiac(sh1) + '</div>';
-        });
-      } else if (isUnknown) {
-        hseHtml = '<div style="color:#94a3b8; font-style:italic;">House cusps not defined for unknown time without specified rising sign.</div>';
-      }
+// --- 4. HOUSE CUSPS ---
+    var cuspContainer = document.getElementById('sn-display-houses');
+    if (cuspContainer && d1.houses) {
+      var cuspContent = "";
 
-      if (d2Cusps && Array.isArray(d2Cusps) && (!isUnknown || knownRising !== "NONE")) {
-        hseHtml += '<div style="font-size:0.85rem; text-transform:uppercase; color:#2dd4bf; font-weight:700; margin-top:20px; margin-bottom:8px;">House Cusps (' + h2Label + ')</div>';
-        d2Cusps.forEach(function(hDeg, idx) {
-          var sh2 = window.snAdjustToZodiac(hDeg, zod, ayan);
-          hseHtml += '<div>House ' + (idx + 1) + ': ' + window.snFormatZodiac(sh2) + '</div>';
-        });
-      }
+      if (isTwinMode && d2Data && d2Data.houses) {
+        cuspContent += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px; font-weight:700; color:#2dd4bf; border-bottom:1px solid #2d3348; padding-bottom:4px;">';
+        cuspContent += '  <div>Twin A Cusps (' + h1 + ')</div>';
+        cuspContent += '  <div>Twin B Cusps (' + h1 + ')</div>';
+        cuspContent += '</div>';
 
-      // 5b. INTERCEPTED SIGNS
-      var interceptWrap = document.getElementById("sn-intercepts-wrap");
-      var interceptEl = document.getElementById("sn-display-intercepts");
-      var interceptedList = (d1 && d1.intercepted_signs) ? d1.intercepted_signs : [];
-
-      if (interceptWrap && interceptEl) {
-        if (interceptedList.length > 0 && (!isUnknown || knownRising !== "NONE")) {
-          interceptWrap.style.display = "block";
-          interceptEl.innerHTML = 
-            '<div><strong>Intercepted Signs:</strong> ' + interceptedList.join(", ") + '</div>' +
-            '<div style="font-size:0.78rem; color:#94a3b8; margin-top:3px;">These signs are entirely contained inside houses without holding a house cusp.</div>';
-        } else {
-          interceptWrap.style.display = "none";
-          interceptEl.innerHTML = "";
+        for (var i = 0; i < 12; i++) {
+          var hNum = i + 1;
+          var cA = d1.houses[i];
+          var cB = d2Data.houses[i];
+          cuspContent += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 4px;">';
+          cuspContent += '  <div><strong>House ' + hNum + ':</strong> ' + window.snFormatZodiac(cA) + '</div>';
+          cuspContent += '  <div><strong>House ' + hNum + ':</strong> ' + (cB !== undefined ? window.snFormatZodiac(cB) : "—") + '</div>';
+          cuspContent += '</div>';
+        }
+      } else {
+        // Your existing single-chart house cusps loop
+        for (var i = 0; i < 12; i++) {
+          var hNum = i + 1;
+          var c1 = d1.houses[i];
+          var extra = "";
+          if (d2Cusps) {
+            extra = ' <span style="color:#94a3b8;font-size:0.8rem;">(' + h2Label + ': ' + window.snFormatZodiac(d2Cusps[i]) + ')</span>';
+          }
+          cuspContent += '<div><strong>House ' + hNum + ':</strong> ' + window.snFormatZodiac(c1) + extra + '</div>';
         }
       }
+      cuspContainer.innerHTML = cuspContent;
+    }
+
+// --- 5b. INTERCEPTED SIGNS & DUPLICATED AXES ---
+    var wrapEl = document.getElementById("sn-intercepts-wrap");
+    var dispEl = document.getElementById("sn-display-intercepts");
+
+    if (wrapEl && dispEl) {
+      var intercepts = d1.intercepted_signs || [];
+      var houseSigns = d1.house_signs || {};
+
+      // Find duplicated signs (signs that appear on more than one cusp)
+      var cuspSigns = d1.cusp_signs || [];
+      var counts = {};
+      cuspSigns.forEach(function(s) { counts[s] = (counts[s] || 0) + 1; });
+      var duplicated = Object.keys(counts).filter(function(s) { return counts[s] > 1; });
+
+      if (intercepts.length > 0 || duplicated.length > 0) {
+        wrapEl.style.display = "block"; // <--- MUST UNHIDE THE WRAPPER!
+        var out = "";
+        
+        if (intercepts.length > 0) {
+          out += "<div><strong>Intercepted Signs:</strong> " + intercepts.join(", ") + " (contained entirely within a house without a cusp)</div>";
+        }
+        if (duplicated.length > 0) {
+          out += "<div><strong>Duplicated Signs:</strong> " + duplicated.join(", ") + " (rule more than one house cusp)</div>";
+        }
+        dispEl.innerHTML = out;
+      } else {
+        // If whole sign, or if all 12 houses cleanly align with the 12 signs:
+        if (h1 === "WHOLE" || h1 === "EQUAL") {
+          wrapEl.style.display = "none";
+        } else {
+          // Show that the chart is balanced / non-intercepted
+          wrapEl.style.display = "block";
+          dispEl.innerHTML = "<div style='color: #94a3b8;'>No intercepted signs present. All twelve signs hold an active house cusp in this system.</div>";
+        }
+      }
+    }
 
       // 6. ASPECTS
       var asps = snFindAspects(aspBodies, aspStyle);
