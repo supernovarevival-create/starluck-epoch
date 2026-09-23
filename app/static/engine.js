@@ -164,28 +164,27 @@
       activeBtn.style.color = "#ffffff";
     }
 
+    // ALWAYS keep secondary houses visible so users can compare house systems in ANY mode!
+    if (h2Group) h2Group.style.display = "block";
+
     if (mode === "NATAL_DUAL") {
       if (bWrap) bWrap.style.display = "none";
       if (twinBar) twinBar.style.display = "none";
-      if (h2Group) h2Group.style.display = "block";
     } else if (mode === "TWIN_COMPARE") {
       if (bWrap) bWrap.style.display = "block";
       if (twinBar) twinBar.style.display = "flex";
       if (bTitle) bTitle.textContent = "Person B Details";
       if (bLoc) bLoc.style.display = "grid";
-      if (h2Group) h2Group.style.display = "none";
       window.snSyncTwinLocation();
     } else if (mode === "SYNASTRY") {
       if (bWrap) bWrap.style.display = "block";
       if (twinBar) twinBar.style.display = "none";
       if (bTitle) bTitle.textContent = "Person B Details";
       if (bLoc) bLoc.style.display = "grid";
-      if (h2Group) h2Group.style.display = "none";
     } else if (mode === "TRANSITS") {
       if (bWrap) bWrap.style.display = "block";
       if (twinBar) twinBar.style.display = "none";
       if (bTitle) bTitle.textContent = "Transit Date & Time";
-      if (h2Group) h2Group.style.display = "none";
 
       var now = new Date();
       var nowYMD = now.toISOString().split("T")[0];
@@ -392,9 +391,9 @@
 
   function snFormatDualHouseBadge(h1Num, h1Name, h2Num, h2Name) {
     if (h2Num && h2Name) {
-      return ' <span style="color:#94a3b8; font-size:0.8rem;">(House ' + h1Num + ' [' + h1Name + '] / House ' + h2Num + ' [' + h2Name + '])</span>';
+      return ' <span style="color:#94a3b8; font-size:0.8rem;">(H' + h1Num + ' [' + h1Name.substr(0,4) + '] / H' + h2Num + ' [' + h2Name.substr(0,4) + '])</span>';
     }
-    return ' <span style="color:#94a3b8; font-size:0.8rem;">(House ' + h1Num + ' [' + h1Name + '])</span>';
+    return ' <span style="color:#94a3b8; font-size:0.8rem;">(House ' + h1Num + ')</span>';
   }
 
   // --- SVG WHEEL (COUNTER-CLOCKWISE: ASC FAR-LEFT, MC TOP) ---
@@ -562,8 +561,9 @@
     };
 
     var d1 = null;
-    var d2Cusps = null;
     var d2Data = null;
+    var d1Cusps2 = null; // System 2 cusps for Chart A
+    var d2Cusps2 = null; // System 2 cusps for Chart B
 
     var isDualMode = (window.snCurrentMode === "TWIN_COMPARE" || window.snCurrentMode === "SYNASTRY" || window.snCurrentMode === "TRANSITS");
 
@@ -589,6 +589,7 @@
           house_system: h1
         };
 
+        // Primary calculation for both Person A and Person B in House System 1
         var resArray = await Promise.all([
           fetch('https://supernova-calc-engine.onrender.com/api/v1/natal', {
             method: 'POST',
@@ -611,10 +612,35 @@
 
         d1 = await resArray[0].json();
         d2Data = await resArray[1].json();
-        d2Cusps = d2Data.houses;
-        h2Label = "Person B (" + bTimeVal + ")";
+
+        // Secondary calculation for House System 2 (if selected)
+        if (h2Label) {
+          var reqA2 = Object.assign({}, baseReq, { house_system: h2 });
+          var reqB2 = Object.assign({}, reqB, { house_system: h2 });
+
+          var res2Array = await Promise.all([
+            fetch('https://supernova-calc-engine.onrender.com/api/v1/natal', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(reqA2)
+            }),
+            fetch('https://supernova-calc-engine.onrender.com/api/v1/natal', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(reqB2)
+            })
+          ]);
+
+          if (res2Array[0].ok && res2Array[1].ok) {
+            var d1Sys2 = await res2Array[0].json();
+            var d2Sys2 = await res2Array[1].json();
+            d1Cusps2 = d1Sys2.houses;
+            d2Cusps2 = d2Sys2.houses;
+          }
+        }
 
       } else {
+        // SINGLE CHART MODE
         var res1 = await fetch('https://supernova-calc-engine.onrender.com/api/v1/natal', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -635,8 +661,8 @@
             body: JSON.stringify(req2)
           });
           if (res2.ok) {
-            var d2 = await res2.json();
-            d2Cusps = d2.houses;
+            var d1Sys2 = await res2.json();
+            d1Cusps2 = d1Sys2.houses;
           }
         }
       }
@@ -672,7 +698,6 @@
       if (h2Label) raw += snPad("H (" + h2Label.substr(0,4) + ")", 12);
       raw += "\n----------------------------------------------------------------------\n";
 
-      // UNIFIED LABELS: Always Person A & Person B
       var labelA = "Person A";
       var labelB = (window.snCurrentMode === "TRANSITS") ? "Transits" : "Person B";
 
@@ -692,7 +717,8 @@
             '<div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">' +
               '<span class="sn-meta-pill" style="border-color:' + color1 + '; color:' + color1 + ';">' + labelA + ': ' + icon1 + ' <strong>' + sect1 + ' SECT</strong></span>' +
               '<span class="sn-meta-pill" style="border-color:' + color2 + '; color:' + color2 + ';">' + labelB + ': ' + icon2 + ' <strong>' + sect2 + ' SECT</strong></span>' +
-              '<span class="sn-meta-pill">House System: <strong>' + h1Label + '</strong></span>' +
+              '<span class="sn-meta-pill">Primary: <strong>' + h1Label + '</strong></span>' +
+              (h2Label ? '<span class="sn-meta-pill">Secondary: <strong>' + h2Label + '</strong></span>' : '') +
               '<span class="sn-meta-pill">Zodiac: <strong>' + zod + '</strong></span>' +
             '</div>';
         } else {
@@ -727,7 +753,7 @@
         }
       }
 
-      // --- Chart Wheels (Corrected Headings) ---
+      // --- Chart Wheels ---
       var wheelsWrap = document.getElementById("sn-wheels-wrap");
       var wPrimEl = document.getElementById("sn-wheel-primary");
       var wSecEl = document.getElementById("sn-wheel-secondary");
@@ -736,13 +762,16 @@
         wheelsWrap.style.display = "block";
         
         var wheel1Title = isDualMode ? (labelA + " (" + h1Label + ")") : h1Label;
-        var wheel2Title = isDualMode ? (labelB + " (" + h1Label + ")") : h2Label;
+        var wheel2Title = isDualMode ? (labelB + " (" + h1Label + ")") : (h2Label || "");
 
         wPrimEl.innerHTML = snRenderWheelSVG(wheel1Title, d1.houses, d1.planets, d1.angles, isUnknown);
 
-        if (d2Cusps && (isDualMode || h2Label)) {
+        if (isDualMode && d2Data && d2Data.houses) {
           wSecEl.style.display = "block";
-          wSecEl.innerHTML = snRenderWheelSVG(wheel2Title, d2Cusps, (d2Data ? d2Data.planets : d1.planets), (d2Data ? d2Data.angles : d1.angles), isUnknown);
+          wSecEl.innerHTML = snRenderWheelSVG(wheel2Title, d2Data.houses, d2Data.planets, d2Data.angles, isUnknown);
+        } else if (!isDualMode && d1Cusps2 && h2Label) {
+          wSecEl.style.display = "block";
+          wSecEl.innerHTML = snRenderWheelSVG(h2Label, d1Cusps2, d1.planets, d1.angles, isUnknown);
         } else {
           wSecEl.style.display = "none";
           wSecEl.innerHTML = "";
@@ -771,9 +800,19 @@
           });
 
           if (d1.planets["TrueNode"] && d2Data.planets && d2Data.planets["TrueNode"]) {
+            var nA = d1.planets["TrueNode"];
+            var nB = d2Data.planets["TrueNode"];
+            var nodeH1_A = nA.house;
+            var nodeH2_A = d1Cusps2 ? snDetermineHouse(nA.lon, d1Cusps2) : null;
+            var nodeTagA = snFormatDualHouseBadge(nodeH1_A, h1Label, nodeH2_A, h2Label);
+
+            var nodeH1_B = nB.house;
+            var nodeH2_B = d2Cusps2 ? snDetermineHouse(nB.lon, d2Cusps2) : null;
+            var nodeTagB = snFormatDualHouseBadge(nodeH1_B, h1Label, nodeH2_B, h2Label);
+
             angContent += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 4px;">';
-            angContent += '  <div><strong>True Node:</strong> ' + window.snFormatZodiac(d1.planets["TrueNode"].lon) + ' (H' + d1.planets["TrueNode"].house + ')</div>';
-            angContent += '  <div><strong>True Node:</strong> ' + window.snFormatZodiac(d2Data.planets["TrueNode"].lon) + ' (H' + d2Data.planets["TrueNode"].house + ')</div>';
+            angContent += '  <div><strong>True Node:</strong> ' + window.snFormatZodiac(nA.lon) + ' ' + nodeTagA + '</div>';
+            angContent += '  <div><strong>True Node:</strong> ' + window.snFormatZodiac(nB.lon) + ' ' + nodeTagB + '</div>';
             angContent += '</div>';
           }
         } else {
@@ -782,7 +821,10 @@
           angContent += '<div><strong>Descendant (DSC):</strong> ' + window.snFormatZodiac(d1.angles.DS) + '</div>';
           angContent += '<div><strong>Imum Coeli (IC):</strong> ' + window.snFormatZodiac(d1.angles.IC) + '</div>';
           if (d1.planets["TrueNode"]) {
-            angContent += '<div><strong>True North Node:</strong> ' + window.snFormatZodiac(d1.planets["TrueNode"].lon) + ' (House ' + d1.planets["TrueNode"].house + ')</div>';
+            var n = d1.planets["TrueNode"];
+            var nH2 = d1Cusps2 ? snDetermineHouse(n.lon, d1Cusps2) : null;
+            var nTag = snFormatDualHouseBadge(n.house, h1Label, nH2, h2Label);
+            angContent += '<div><strong>True North Node:</strong> ' + window.snFormatZodiac(n.lon) + ' ' + nTag + '</div>';
           }
         }
         angContainer.innerHTML = angContent;
@@ -807,14 +849,20 @@
             var retroA = pA.retro ? ' <span style="color:#f87171;font-size:0.75rem;">℞</span>' : '';
             var retroB = (pB && pB.retro) ? ' <span style="color:#f87171;font-size:0.75rem;">℞</span>' : '';
 
-            var houseA = pA.house;
-            var houseB = pB ? pB.house : "—";
-            var hStyleA = (houseA !== houseB) ? 'color:#fbbf24; font-weight:700;' : '';
-            var hStyleB = (houseA !== houseB) ? 'color:#fbbf24; font-weight:700;' : '';
+            var h1_A = pA.house;
+            var h2_A = d1Cusps2 ? snDetermineHouse(pA.lon, d1Cusps2) : null;
+            var tagA = snFormatDualHouseBadge(h1_A, h1Label, h2_A, h2Label);
+
+            var tagB = "—";
+            if (pB) {
+              var h1_B = pB.house;
+              var h2_B = d2Cusps2 ? snDetermineHouse(pB.lon, d2Cusps2) : null;
+              tagB = snFormatDualHouseBadge(h1_B, h1Label, h2_B, h2Label);
+            }
 
             plaContent += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 4px; padding: 2px 0;">';
-            plaContent += '  <div><strong>' + dispName + ':</strong> ' + window.snFormatZodiac(pA.lon) + retroA + ' (<span style="' + hStyleA + '">H' + houseA + '</span>)</div>';
-            plaContent += '  <div><strong>' + dispName + ':</strong> ' + (pB ? window.snFormatZodiac(pB.lon) + retroB + ' (<span style="' + hStyleB + '">H' + houseB + '</span>)' : '—') + '</div>';
+            plaContent += '  <div><strong>' + dispName + ':</strong> ' + window.snFormatZodiac(pA.lon) + retroA + ' ' + tagA + '</div>';
+            plaContent += '  <div><strong>' + dispName + ':</strong> ' + (pB ? (window.snFormatZodiac(pB.lon) + retroB + ' ' + tagB) : '—') + '</div>';
             plaContent += '</div>';
           });
         } else {
@@ -822,15 +870,10 @@
             if (pName === "TrueNode") return;
             var p = d1.planets[pName];
             var retroBadge = p.retro ? ' <span style="color:#f87171;font-size:0.75rem;">℞</span>' : '';
-            var dualTag = "";
-            if (d2Cusps) {
-              var h2Idx = snDetermineHouse(p.lon, d2Cusps);
-              dualTag = ' <span style="color:#94a3b8;font-size:0.8rem;">(' + h1 + ': H' + p.house + ' | ' + h2Label + ': H' + h2Idx + ')</span>';
-            } else {
-              dualTag = ' <span style="color:#94a3b8;font-size:0.8rem;">(House ' + p.house + ')</span>';
-            }
+            var h2Idx = d1Cusps2 ? snDetermineHouse(p.lon, d1Cusps2) : null;
+            var dualTag = snFormatDualHouseBadge(p.house, h1Label, h2Idx, h2Label);
             var dispName = (pName === "BlackMoonLilith") ? "Black Moon Lilith" : (pName === "PartOfFortune" ? "Part of Fortune" : pName);
-            plaContent += '<div><strong>' + dispName + ':</strong> ' + window.snFormatZodiac(p.lon) + retroBadge + dualTag + '</div>';
+            plaContent += '<div><strong>' + dispName + ':</strong> ' + window.snFormatZodiac(p.lon) + retroBadge + ' ' + dualTag + '</div>';
           });
         }
         plaContainer.innerHTML = plaContent;
@@ -859,15 +902,19 @@
             var row1 = "—", row2 = "—";
             if (aObj1) {
               var lon1 = window.snAdjustToZodiac(aObj1.lon, zod, ayan);
-              var h1Num = snDetermineHouse(lon1, d1.houses);
+              var h1Num1 = snDetermineHouse(lon1, d1.houses);
+              var h2Num1 = d1Cusps2 ? snDetermineHouse(lon1, d1Cusps2) : null;
               var retro1 = aObj1.retro ? ' <span style="color:#f87171;">(R)</span>' : '';
-              row1 = '<strong>' + item.name + ':</strong> ' + window.snFormatZodiac(lon1) + retro1 + ' (H' + h1Num + ')';
+              var tagA = snFormatDualHouseBadge(h1Num1, h1Label, h2Num1, h2Label);
+              row1 = '<strong>' + item.name + ':</strong> ' + window.snFormatZodiac(lon1) + retro1 + ' ' + tagA;
             }
             if (aObj2) {
               var lon2 = window.snAdjustToZodiac(aObj2.lon, zod, ayan);
-              var h2Num = snDetermineHouse(lon2, d2Data.houses);
+              var h1Num2 = snDetermineHouse(lon2, d2Data.houses);
+              var h2Num2 = d2Cusps2 ? snDetermineHouse(lon2, d2Cusps2) : null;
               var retro2 = aObj2.retro ? ' <span style="color:#f87171;">(R)</span>' : '';
-              row2 = '<strong>' + item.name + ':</strong> ' + window.snFormatZodiac(lon2) + retro2 + ' (H' + h2Num + ')';
+              var tagB = snFormatDualHouseBadge(h1Num2, h1Label, h2Num2, h2Label);
+              row2 = '<strong>' + item.name + ':</strong> ' + window.snFormatZodiac(lon2) + retro2 + ' ' + tagB;
             }
 
             astHtml += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 4px;">';
@@ -884,10 +931,10 @@
             if (aObj) {
               var aLon = window.snAdjustToZodiac(aObj.lon, zod, ayan);
               var ah1 = snDetermineHouse(aLon, d1.houses);
-              var ah2 = d2Cusps ? snDetermineHouse(aLon, d2Cusps) : null;
+              var ah2 = d1Cusps2 ? snDetermineHouse(aLon, d1Cusps2) : null;
               var aBadge = aObj.retro ? ' <span style="color:#f87171; font-weight:bold;">(R)</span>' : '';
               var aTag = snFormatDualHouseBadge(ah1, h1Label, ah2, h2Label);
-              singleAstHtml += '<div><strong>' + item.name + ':</strong> ' + window.snFormatZodiac(aLon) + aBadge + aTag + '</div>';
+              singleAstHtml += '<div><strong>' + item.name + ':</strong> ' + window.snFormatZodiac(aLon) + aBadge + ' ' + aTag + '</div>';
             }
           });
           astBox.innerHTML = singleAstHtml || '<span style="color:#64748b;">None calculated</span>';
@@ -931,23 +978,29 @@
         }
       }
 
-      // --- 5. House Cusps ---
+      // --- 5. House Cusps (Dual-House Comparison for Both Charts) ---
       var cuspContainer = document.getElementById('sn-display-houses');
       if (cuspContainer && d1.houses) {
         var cuspContent = "";
         if (isDualMode && d2Data && d2Data.houses) {
           cuspContent += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px; font-weight:700; color:#2dd4bf; border-bottom:1px solid #2d3348; padding-bottom:4px;">';
-          cuspContent += '  <div>' + labelA + ' Cusps (' + h1 + ')</div>';
-          cuspContent += '  <div>' + labelB + ' Cusps (' + h1 + ')</div>';
+          cuspContent += '  <div>' + labelA + ' Cusps</div>';
+          cuspContent += '  <div>' + labelB + ' Cusps</div>';
           cuspContent += '</div>';
 
           for (var i = 0; i < 12; i++) {
             var hNum = i + 1;
-            var cA = d1.houses[i];
-            var cB = d2Data.houses[i];
+            var cA1 = d1.houses[i];
+            var cA2 = d1Cusps2 ? d1Cusps2[i] : null;
+            var tagA = cA2 ? (' <span style="color:#94a3b8;font-size:0.75rem;">[' + h2Label.substr(0,4) + ': ' + window.snFormatZodiac(cA2) + ']</span>') : '';
+
+            var cB1 = d2Data.houses[i];
+            var cB2 = d2Cusps2 ? d2Cusps2[i] : null;
+            var tagB = cB2 ? (' <span style="color:#94a3b8;font-size:0.75rem;">[' + h2Label.substr(0,4) + ': ' + window.snFormatZodiac(cB2) + ']</span>') : '';
+
             cuspContent += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 4px;">';
-            cuspContent += '  <div><strong>House ' + hNum + ':</strong> ' + window.snFormatZodiac(cA) + '</div>';
-            cuspContent += '  <div><strong>House ' + hNum + ':</strong> ' + (cB !== undefined ? window.snFormatZodiac(cB) : "—") + '</div>';
+            cuspContent += '  <div><strong>H' + hNum + ':</strong> ' + window.snFormatZodiac(cA1) + tagA + '</div>';
+            cuspContent += '  <div><strong>H' + hNum + ':</strong> ' + (cB1 !== undefined ? (window.snFormatZodiac(cB1) + tagB) : "—") + '</div>';
             cuspContent += '</div>';
           }
         } else {
@@ -955,8 +1008,8 @@
             var hNum = i + 1;
             var c1 = d1.houses[i];
             var extra = "";
-            if (d2Cusps) {
-              extra = ' <span style="color:#94a3b8;font-size:0.8rem;">(' + h2Label + ': ' + window.snFormatZodiac(d2Cusps[i]) + ')</span>';
+            if (d1Cusps2) {
+              extra = ' <span style="color:#94a3b8;font-size:0.8rem;">(' + h2Label + ': ' + window.snFormatZodiac(d1Cusps2[i]) + ')</span>';
             }
             cuspContent += '<div><strong>House ' + hNum + ':</strong> ' + window.snFormatZodiac(c1) + extra + '</div>';
           }
@@ -1228,13 +1281,16 @@
       raw += "======================================================================\n";
       if (d1.planets) {
         Object.keys(d1.planets).forEach(function(pName) {
-          var p = d1.planets[pName];
-          var retro = p.retro ? " (R)" : "";
-          var pLine = snPad(pName, 16) + snPad(window.snFormatZodiac(p.lon) + retro, 18) + snPad("House " + p.house, 12);
+          var pA = d1.planets[pName];
+          var retroA = pA.retro ? " (R)" : "";
+          var h2_A = d1Cusps2 ? (" / H" + snDetermineHouse(pA.lon, d1Cusps2)) : "";
+          var pLine = snPad(pName, 16) + snPad(window.snFormatZodiac(pA.lon) + retroA, 18) + snPad("H" + pA.house + h2_A, 14);
+          
           if (isDualMode && d2Data && d2Data.planets && d2Data.planets[pName]) {
             var pB = d2Data.planets[pName];
             var retroB = pB.retro ? " (R)" : "";
-            pLine += " | " + labelB + ": " + snPad(window.snFormatZodiac(pB.lon) + retroB, 18) + "House " + pB.house;
+            var h2_B = d2Cusps2 ? (" / H" + snDetermineHouse(pB.lon, d2Cusps2)) : "";
+            pLine += " | " + labelB + ": " + snPad(window.snFormatZodiac(pB.lon) + retroB, 18) + "H" + pB.house + h2_B;
           }
           raw += pLine + "\n";
         });
