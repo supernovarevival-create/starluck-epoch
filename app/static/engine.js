@@ -521,12 +521,6 @@
 
     svg += '</svg>';
     return '<div style="font-size: 0.8rem; font-weight:600; color:#2dd4bf; margin-bottom:8px;">' + title + '</div>' + svg;
-  }
-
-  svg += '<text x="18" y="' + (center + 4) + '" font-size="10" font-family="sans-serif" font-weight="700" fill="#2dd4bf">ASC</text>';
-
-    svg += '</svg>';
-    return '<div style="font-size: 0.8rem; font-weight:600; color:#2dd4bf; margin-bottom:8px;">' + title + '</div>' + svg;
   };
 
   // =========================================================================
