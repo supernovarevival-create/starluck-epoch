@@ -164,7 +164,6 @@
       activeBtn.style.color = "#ffffff";
     }
 
-    // ALWAYS keep secondary houses visible so users can compare house systems in ANY mode!
     if (h2Group) h2Group.style.display = "block";
 
     if (mode === "NATAL_DUAL") {
@@ -562,8 +561,8 @@
 
     var d1 = null;
     var d2Data = null;
-    var d1Cusps2 = null; // System 2 cusps for Chart A
-    var d2Cusps2 = null; // System 2 cusps for Chart B
+    var d1Cusps2 = null;
+    var d2Cusps2 = null;
 
     var isDualMode = (window.snCurrentMode === "TWIN_COMPARE" || window.snCurrentMode === "SYNASTRY" || window.snCurrentMode === "TRANSITS");
 
@@ -589,7 +588,6 @@
           house_system: h1
         };
 
-        // Primary calculation for both Person A and Person B in House System 1
         var resArray = await Promise.all([
           fetch('https://supernova-calc-engine.onrender.com/api/v1/natal', {
             method: 'POST',
@@ -613,7 +611,6 @@
         d1 = await resArray[0].json();
         d2Data = await resArray[1].json();
 
-        // Secondary calculation for House System 2 (if selected)
         if (h2Label) {
           var reqA2 = Object.assign({}, baseReq, { house_system: h2 });
           var reqB2 = Object.assign({}, reqB, { house_system: h2 });
@@ -640,7 +637,6 @@
         }
 
       } else {
-        // SINGLE CHART MODE
         var res1 = await fetch('https://supernova-calc-engine.onrender.com/api/v1/natal', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -753,28 +749,62 @@
         }
       }
 
-      // --- Chart Wheels ---
+      // =========================================================================
+      // --- DYNAMIC CHART WHEELS (UP TO 4 TILES) ---
+      // =========================================================================
       var wheelsWrap = document.getElementById("sn-wheels-wrap");
-      var wPrimEl = document.getElementById("sn-wheel-primary");
-      var wSecEl = document.getElementById("sn-wheel-secondary");
+      var w1 = document.getElementById("sn-wheel-primary");
+      var w2 = document.getElementById("sn-wheel-secondary");
+      var w3 = document.getElementById("sn-wheel-tertiary");
+      var w4 = document.getElementById("sn-wheel-quaternary");
 
-      if (wheelsWrap && wPrimEl && (!isUnknown || knownRising !== "NONE")) {
+      [w1, w2, w3, w4].forEach(function(el) {
+        if (el) { el.style.display = "none"; el.innerHTML = ""; }
+      });
+
+      if (wheelsWrap && w1 && (!isUnknown || knownRising !== "NONE")) {
         wheelsWrap.style.display = "block";
-        
-        var wheel1Title = isDualMode ? (labelA + " (" + h1Label + ")") : h1Label;
-        var wheel2Title = isDualMode ? (labelB + " (" + h1Label + ")") : (h2Label || "");
 
-        wPrimEl.innerHTML = snRenderWheelSVG(wheel1Title, d1.houses, d1.planets, d1.angles, isUnknown);
-
-        if (isDualMode && d2Data && d2Data.houses) {
-          wSecEl.style.display = "block";
-          wSecEl.innerHTML = snRenderWheelSVG(wheel2Title, d2Data.houses, d2Data.planets, d2Data.angles, isUnknown);
-        } else if (!isDualMode && d1Cusps2 && h2Label) {
-          wSecEl.style.display = "block";
-          wSecEl.innerHTML = snRenderWheelSVG(h2Label, d1Cusps2, d1.planets, d1.angles, isUnknown);
+        if (isDualMode && d2Data) {
+          if (h2Label && d1Cusps2 && d2Cusps2) {
+            // 4 Wheels: 2 People x 2 House Systems
+            if (w1) {
+              w1.style.display = "block";
+              w1.innerHTML = snRenderWheelSVG(labelA + " (" + h1Label + ")", d1.houses, d1.planets, d1.angles, isUnknown);
+            }
+            if (w2) {
+              w2.style.display = "block";
+              w2.innerHTML = snRenderWheelSVG(labelB + " (" + h1Label + ")", d2Data.houses, d2Data.planets, d2Data.angles, isUnknown);
+            }
+            if (w3) {
+              w3.style.display = "block";
+              w3.innerHTML = snRenderWheelSVG(labelA + " (" + h2Label + ")", d1Cusps2, d1.planets, d1.angles, isUnknown);
+            }
+            if (w4) {
+              w4.style.display = "block";
+              w4.innerHTML = snRenderWheelSVG(labelB + " (" + h2Label + ")", d2Cusps2, d2Data.planets, d2Data.angles, isUnknown);
+            }
+          } else {
+            // 2 Wheels: Person A vs Person B in System 1
+            if (w1) {
+              w1.style.display = "block";
+              w1.innerHTML = snRenderWheelSVG(labelA + " (" + h1Label + ")", d1.houses, d1.planets, d1.angles, isUnknown);
+            }
+            if (w2) {
+              w2.style.display = "block";
+              w2.innerHTML = snRenderWheelSVG(labelB + " (" + h1Label + ")", d2Data.houses, d2Data.planets, d2Data.angles, isUnknown);
+            }
+          }
         } else {
-          wSecEl.style.display = "none";
-          wSecEl.innerHTML = "";
+          // Single Chart: System 1 vs System 2
+          if (w1) {
+            w1.style.display = "block";
+            w1.innerHTML = snRenderWheelSVG(h1Label, d1.houses, d1.planets, d1.angles, isUnknown);
+          }
+          if (w2 && d1Cusps2 && h2Label) {
+            w2.style.display = "block";
+            w2.innerHTML = snRenderWheelSVG(h2Label, d1Cusps2, d1.planets, d1.angles, isUnknown);
+          }
         }
       } else if (wheelsWrap) {
         wheelsWrap.style.display = "none";
@@ -978,7 +1008,7 @@
         }
       }
 
-      // --- 5. House Cusps (Dual-House Comparison for Both Charts) ---
+      // --- 5. House Cusps ---
       var cuspContainer = document.getElementById('sn-display-houses');
       if (cuspContainer && d1.houses) {
         var cuspContent = "";
@@ -1153,7 +1183,7 @@
         var keysB = Object.keys(bodiesB);
 
         for (var i = 0; i < keysA.length; i++) {
-          for (var j = 0; j < keysB.length; j++) {
+          for (var j = i + 1; j < keysB.length; j++) {
             var pA = keysA[i], pB = keysB[j];
             var lonA = bodiesA[pA], lonB = bodiesB[pB];
             var diff = Math.abs(lonA - lonB) % 360;
@@ -1348,7 +1378,7 @@
   };
 
   // =========================================================================
-  // 6. CLIPBOARD & LIFECYCLE INITIALIZER
+  // 5. CLIPBOARD & LIFECYCLE INITIALIZER
   // =========================================================================
   window.snCopyPayload = function() {
     var box = document.getElementById('sn-payload-box');
