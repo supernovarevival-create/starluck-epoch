@@ -437,7 +437,7 @@
     return res;
   }
 
-  // --- SVG CHART WHEEL GENERATOR ---
+// --- SVG CHART WHEEL GENERATOR (CORRECT ORIENTATION: ASC LEFT, MC TOP) ---
   function snRenderWheelSVG(title, houses, planets, angles, isUnknown) {
     if (!houses || houses.length !== 12) return "";
 
@@ -448,11 +448,13 @@
     var rHouses = 100;
     var rInner = 40;
 
+    // Ascendant defines the left horizon (180 degrees)
     var ascDeg = (angles && angles.ASC !== undefined) ? angles.ASC : houses[0];
 
+    // Math: Counter-clockwise flow with SVG's inverted Y-axis
     function degToXY(deg, radius) {
-      var angleDeg = (180 + (deg - ascDeg)) % 360;
-      var rad = angleDeg * (Math.PI / 180);
+      // Counter-clockwise delta from ASC (ASC = 180 deg / far left)
+      var rad = (180 - (deg - ascDeg)) * (Math.PI / 180);
       return {
         x: (center + radius * Math.cos(rad)).toFixed(2),
         y: (center + radius * Math.sin(rad)).toFixed(2)
@@ -515,9 +517,10 @@
       });
     }
 
-    // Horizontal Ascendant Marker Line
+    // Horizontal Ascendant Marker Line (Far Left horizon)
     var ascP1 = degToXY(ascDeg, rOuter + 8);
-    svg += '<line x1="' + ascP1.x + '" y1="' + ascP1.y + '" x2="' + degToXY(ascDeg, rZodiac).x + '" y2="' + degToXY(ascDeg, rZodiac).y + '" stroke="#2dd4bf" stroke-width="2.5" />';
+    var ascP2 = degToXY(ascDeg, rZodiac);
+    svg += '<line x1="' + ascP1.x + '" y1="' + ascP1.y + '" x2="' + ascP2.x + '" y2="' + ascP2.y + '" stroke="#2dd4bf" stroke-width="2.5" />';
     svg += '<text x="18" y="' + (center + 4) + '" font-size="10" font-family="sans-serif" font-weight="700" fill="#2dd4bf">ASC</text>';
 
     svg += '</svg>';
@@ -719,27 +722,54 @@
       // 0. SECT & OVERVIEW BADGES
       var overviewEl = document.getElementById("sn-display-overview");
       if (overviewEl) {
-        var sectName = d1.sect || "DAY";
-        var sectColor = (sectName === "DAY") ? "#fbbf24" : "#818cf8";
-        var sectIcon = (sectName === "DAY") ? "☀️" : "🌙";
-        overviewEl.innerHTML = 
-          '<span class="sn-meta-pill" style="border-color:' + sectColor + '; color:' + sectColor + ';">' + sectIcon + ' Sect: <strong>' + sectName + ' CHART</strong></span>' +
-          '<span class="sn-meta-pill">Primary: <strong>' + h1Label + '</strong></span>' +
-          (h2Label ? '<span class="sn-meta-pill">Comparison: <strong>' + h2Label + '</strong></span>' : '') +
-          '<span class="sn-meta-pill">Zodiac: <strong>' + zod + '</strong></span>';
+        var sect1 = d1.sect || "DAY";
+        var color1 = (sect1 === "DAY") ? "#fbbf24" : "#818cf8";
+        var icon1 = (sect1 === "DAY") ? "☀️" : "🌙";
+
+        if (isTwinMode && d2Data) {
+          var sect2 = d2Data.sect || "DAY";
+          var color2 = (sect2 === "DAY") ? "#fbbf24" : "#818cf8";
+          var icon2 = (sect2 === "DAY") ? "☀️" : "🌙";
+
+          overviewEl.innerHTML = 
+            '<div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">' +
+              '<span class="sn-meta-pill" style="border-color:' + color1 + '; color:' + color1 + ';">Twin A: ' + icon1 + ' <strong>' + sect1 + ' SECT</strong></span>' +
+              '<span class="sn-meta-pill" style="border-color:' + color2 + '; color:' + color2 + ';">Twin B: ' + icon2 + ' <strong>' + sect2 + ' SECT</strong></span>' +
+              '<span class="sn-meta-pill">House System: <strong>' + h1Label + '</strong></span>' +
+              '<span class="sn-meta-pill">Zodiac: <strong>' + zod + '</strong></span>' +
+            '</div>';
+        } else {
+          overviewEl.innerHTML = 
+            '<span class="sn-meta-pill" style="border-color:' + color1 + '; color:' + color1 + ';">' + icon1 + ' Sect: <strong>' + sect1 + ' CHART</strong></span>' +
+            '<span class="sn-meta-pill">Primary: <strong>' + h1Label + '</strong></span>' +
+            (h2Label ? '<span class="sn-meta-pill">Comparison: <strong>' + h2Label + '</strong></span>' : '') +
+            '<span class="sn-meta-pill">Zodiac: <strong>' + zod + '</strong></span>';
+        }
       }
 
       // 0b. MOON PHASE
       var moonEl = document.getElementById("sn-display-moon");
       if (moonEl && d1.moon_phase) {
-        var pAngle = Math.round(d1.moon_phase.angle || 0);
-        var pName = d1.moon_phase.name || "Unknown Phase";
-        var illum = Math.round((1 - Math.cos((pAngle * Math.PI) / 180)) / 2 * 100);
-        moonEl.innerHTML = 
-          '<div><strong>Phase:</strong> ' + pName + ' <span style="color:#2dd4bf;">(' + pAngle + '° Elongation)</span></div>' +
-          '<div style="color:#94a3b8; font-size:0.8rem; margin-top:2px;">Illumination: ~' + illum + '% | Lunar Cycle Progress: ' + Math.round((pAngle / 360) * 100) + '%</div>';
-      }
+        var renderMoonCard = function(mPhase, label) {
+          if (!mPhase) return '<div>—</div>';
+          var pAngle = Math.round(mPhase.angle || 0);
+          var pName = mPhase.name || "Unknown Phase";
+          var illum = Math.round((1 - Math.cos((pAngle * Math.PI) / 180)) / 2 * 100);
+          return '<div><strong>' + label + ':</strong> ' + pName + ' <span style="color:#2dd4bf;">(' + pAngle + '° Elongation)</span></div>' +
+                 '<div style="color:#94a3b8; font-size:0.8rem; margin-top:2px;">Illumination: ~' + illum + '% | Cycle Progress: ' + Math.round((pAngle / 360) * 100) + '%</div>';
+        };
 
+        if (isTwinMode && d2Data && d2Data.moon_phase) {
+          moonEl.innerHTML = 
+            '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">' +
+              '<div>' + renderMoonCard(d1.moon_phase, "Twin A Moon") + '</div>' +
+              '<div>' + renderMoonCard(d2Data.moon_phase, "Twin B Moon") + '</div>' +
+            '</div>';
+        } else {
+          moonEl.innerHTML = renderMoonCard(d1.moon_phase, "Phase");
+        }
+      }
+      
       // --- RENDER DUAL WHEELS ---
       var wheelsWrap = document.getElementById("sn-wheels-wrap");
       var wPrimEl = document.getElementById("sn-wheel-primary");
@@ -848,58 +878,95 @@
       }
 
       // --- 3. ASTEROIDS ---
-      var astHtml = "";
-      var aspBodies = {};
-      var astData = d1.asteroids || {};
-      var astKeys = Object.keys(astData);
-      
-      if (astKeys.length > 0) {
-        raw += "\n--- Asteroids ---\n";
-        for (var i = 0; i < astKeys.length; i++) {
-          var aKey = astKeys[i];
-          var aObj = astData[aKey];
-          var aId = parseInt(aObj.id || aKey);
-          var mAst = window.snActive.find(function(a) { return a.id === aId; });
-          var aName = mAst ? mAst.name : ("Asteroid " + aId);
+      var astBox = document.getElementById('sn-display-asteroids');
+      var astData1 = d1.asteroids || {};
+      var astData2 = (isTwinMode && d2Data) ? (d2Data.asteroids || {}) : null;
+      var activeList = window.snActive || [];
 
-          var aLon = window.snAdjustToZodiac(aObj.lon, zod, ayan);
-          var aRetro = aObj.retro ? ' (R)' : '';
-          var ah1 = snDetermineHouse(aLon, d1.houses);
-          var ah2 = d2Cusps ? snDetermineHouse(aLon, d2Cusps) : null;
+      if (astBox) {
+        if (activeList.length === 0) {
+          astBox.innerHTML = '<span style="color:#64748b;">No asteroids selected</span>';
+        } else if (isTwinMode && astData2) {
+          var astHtml = '<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px; font-weight:700; color:#2dd4bf; border-bottom:1px solid #2d3348; padding-bottom:4px;">';
+          astHtml += '  <div>Twin A Asteroids</div>';
+          astHtml += '  <div>Twin B Asteroids</div>';
+          astHtml += '</div>';
 
-          raw += snPad(aName, 16) + snPad(window.snFormatZodiac(aLon) + aRetro, 18) + snPad("House " + ah1, 12);
-          if (h2Label) raw += snPad("House " + ah2, 12);
-          raw += "\n";
+          activeList.forEach(function(item) {
+            var aId = parseInt(item.id);
+            var aObj1 = astData1[aId] || astData1[String(aId)];
+            var aObj2 = astData2[aId] || astData2[String(aId)];
 
-          var aBadge = aObj.retro ? ' <span style="color:#f87171; font-weight:bold;">(R)</span>' : '';
-          var aTag = snFormatDualHouseBadge(ah1, h1Label, ah2, h2Label);
-          astHtml += '<div><strong>' + aName + ':</strong> ' + window.snFormatZodiac(aLon) + aBadge + aTag + '</div>';
-          aspBodies[aName] = aLon;
+            var row1 = "—", row2 = "—";
+
+            if (aObj1) {
+              var lon1 = window.snAdjustToZodiac(aObj1.lon, zod, ayan);
+              var h1Num = snDetermineHouse(lon1, d1.houses);
+              var retro1 = aObj1.retro ? ' <span style="color:#f87171;">(R)</span>' : '';
+              row1 = '<strong>' + item.name + ':</strong> ' + window.snFormatZodiac(lon1) + retro1 + ' (H' + h1Num + ')';
+            }
+
+            if (aObj2) {
+              var lon2 = window.snAdjustToZodiac(aObj2.lon, zod, ayan);
+              var h2Num = snDetermineHouse(lon2, d2Data.houses);
+              var retro2 = aObj2.retro ? ' <span style="color:#f87171;">(R)</span>' : '';
+              row2 = '<strong>' + item.name + ':</strong> ' + window.snFormatZodiac(lon2) + retro2 + ' (H' + h2Num + ')';
+            }
+
+            astHtml += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 4px;">';
+            astHtml += '  <div>' + row1 + '</div>';
+            astHtml += '  <div>' + row2 + '</div>';
+            astHtml += '</div>';
+          });
+
+          astBox.innerHTML = astHtml;
+        } else {
+          // Standard single chart asteroid list
+          var singleAstHtml = "";
+          activeList.forEach(function(item) {
+            var aId = parseInt(item.id);
+            var aObj = astData1[aId] || astData1[String(aId)];
+            if (aObj) {
+              var aLon = window.snAdjustToZodiac(aObj.lon, zod, ayan);
+              var ah1 = snDetermineHouse(aLon, d1.houses);
+              var ah2 = d2Cusps ? snDetermineHouse(aLon, d2Cusps) : null;
+              var aBadge = aObj.retro ? ' <span style="color:#f87171; font-weight:bold;">(R)</span>' : '';
+              var aTag = snFormatDualHouseBadge(ah1, h1Label, ah2, h2Label);
+              singleAstHtml += '<div><strong>' + item.name + ':</strong> ' + window.snFormatZodiac(aLon) + aBadge + aTag + '</div>';
+            }
+          });
+          astBox.innerHTML = singleAstHtml || '<span style="color:#64748b;">None calculated</span>';
         }
       }
-      var astBox = document.getElementById('sn-display-asteroids');
-      if (astBox) astBox.innerHTML = astHtml || '<span style="color:#64748b;">None calculated</span>';
 
       // --- 4. FIXED STARS & COSMIC POINTS ---
       var starsBox = document.getElementById("sn-display-stars");
       var starsHeading = document.getElementById("sn-stars-heading");
-      var starsList = (d1 && d1.fixed_stars) ? d1.fixed_stars : [];
+      var listA = (d1 && d1.fixed_stars) ? d1.fixed_stars : [];
+      var listB = (isTwinMode && d2Data && d2Data.fixed_stars) ? d2Data.fixed_stars : [];
 
-      if (starsList.length > 0) {
-        raw += "\n--- Fixed Stars & Cosmic Points ---\n";
-        var starsTxt = "";
-        starsList.forEach(function(s) {
-          var starName = snPad(s.star, 24);
-          var bodyName = snPad(s.body, 14);
-          var pos = snPad(s.star_deg + " " + s.star_sign, 16);
-          starsTxt += '<div><strong>' + s.star + '</strong> [' + s.star_deg + ' ' + s.star_sign + '] <span style="color:#2dd4bf;">Conjunct</span> <strong>' + s.body + '</strong> <span style="color:#94a3b8;">(orb ' + s.orb_formatted + ')</span></div>';
-          raw += starName + " [ " + pos + " ] Conjunct " + bodyName + " (orb " + s.orb_formatted + ")\n";
+      var formatStarList = function(stars) {
+        if (!stars || stars.length === 0) return '<div style="color:#94a3b8; font-style:italic;">No conjunctions within orb</div>';
+        var txt = "";
+        stars.forEach(function(s) {
+          txt += '<div style="margin-bottom:4px;"><strong>' + s.star + '</strong> [' + s.star_deg + ' ' + s.star_sign + '] <span style="color:#2dd4bf;">Conjunct</span> <strong>' + s.body + '</strong> <span style="color:#94a3b8;">(' + s.orb_formatted + ')</span></div>';
         });
+        return txt;
+      };
 
+      if (listA.length > 0 || listB.length > 0) {
         if (starsHeading) starsHeading.style.display = "block";
         if (starsBox) {
-          starsBox.innerHTML = starsTxt;
           starsBox.style.display = "block";
+          if (isTwinMode && d2Data) {
+            starsBox.innerHTML = 
+              '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">' +
+                '<div><div style="font-weight:700; color:#2dd4bf; margin-bottom:6px; border-bottom:1px solid #2d3348; padding-bottom:2px;">Twin A Conjunctions</div>' + formatStarList(listA) + '</div>' +
+                '<div><div style="font-weight:700; color:#2dd4bf; margin-bottom:6px; border-bottom:1px solid #2d3348; padding-bottom:2px;">Twin B Conjunctions</div>' + formatStarList(listB) + '</div>' +
+              '</div>';
+          } else {
+            starsBox.innerHTML = formatStarList(listA);
+          }
         }
       } else {
         if (starsHeading) starsHeading.style.display = "none";
@@ -947,32 +1014,40 @@
       var dispEl = document.getElementById("sn-display-intercepts");
 
       if (wrapEl && dispEl) {
-        var intercepts = d1.intercepted_signs || [];
-        var cuspSigns = d1.cusp_signs || [];
-        var counts = {};
-        cuspSigns.forEach(function(s) { counts[s] = (counts[s] || 0) + 1; });
-        var duplicated = Object.keys(counts).filter(function(s) { return counts[s] > 1; });
+        var formatInterceptSummary = function(dataObj, chartLabel) {
+          var intercepts = dataObj.intercepted_signs || [];
+          var cuspSigns = dataObj.cusp_signs || [];
+          var counts = {};
+          cuspSigns.forEach(function(s) { counts[s] = (counts[s] || 0) + 1; });
+          var duplicated = Object.keys(counts).filter(function(s) { return counts[s] > 1; });
 
-        if (intercepts.length > 0 || duplicated.length > 0) {
-          wrapEl.style.display = "block";
-          var interceptHtml = "";
-          if (intercepts.length > 0) {
-            interceptHtml += "<div><strong>Intercepted Signs:</strong> " + intercepts.join(", ") + " (contained entirely within a house without a cusp)</div>";
-          }
-          if (duplicated.length > 0) {
-            interceptHtml += "<div><strong>Duplicated Signs:</strong> " + duplicated.join(", ") + " (rule more than one house cusp)</div>";
-          }
-          dispEl.innerHTML = interceptHtml;
-        } else {
-          if (h1 === "WHOLE" || h1 === "EQUAL") {
-            wrapEl.style.display = "none";
+          var html = '<div style="margin-bottom:4px; font-weight:700; color:#2dd4bf;">' + chartLabel + '</div>';
+          if (intercepts.length > 0 || duplicated.length > 0) {
+            if (intercepts.length > 0) {
+              html += '<div><strong>Intercepted:</strong> ' + intercepts.join(", ") + '</div>';
+            }
+            if (duplicated.length > 0) {
+              html += '<div><strong>Duplicated Cusps:</strong> ' + duplicated.join(", ") + '</div>';
+            }
           } else {
-            wrapEl.style.display = "block";
-            dispEl.innerHTML = "<div style='color: #94a3b8;'>No intercepted signs present. All twelve signs hold an active house cusp in this system.</div>";
+            html += '<div style="color:#94a3b8; font-style:italic;">No intercepted signs (balanced wheel)</div>';
           }
+          return html;
+        };
+
+        wrapEl.style.display = "block";
+
+        if (isTwinMode && d2Data) {
+          dispEl.innerHTML = 
+            '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">' +
+              '<div>' + formatInterceptSummary(d1, "Twin A Axis") + '</div>' +
+              '<div>' + formatInterceptSummary(d2Data, "Twin B Axis") + '</div>' +
+            '</div>';
+        } else {
+          dispEl.innerHTML = formatInterceptSummary(d1, "Chart Axis");
         }
       }
-
+      
       // --- 6. ASPECTS ---
       if (d1.planets) {
         Object.keys(d1.planets).forEach(function(k) {
