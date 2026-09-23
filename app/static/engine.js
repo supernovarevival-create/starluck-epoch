@@ -1203,6 +1203,24 @@
           aspElDisplay.innerHTML = renderCategorizedAspects(aspListA);
         }
       }
+
+      var pBox = document.getElementById('sn-payload-box');
+      if (pBox) pBox.value = raw;
+
+      if (disp) disp.style.display = "block";
+      if (out) out.style.display = "block";
+
+    // =======================================================================
+    // MAKE SURE THIS CATCH & FINALLY BLOCK CLOSES snCalculatePlacements:
+    // =======================================================================
+    } catch (err) {
+      alert("Calculation error: " + err.message);
+      console.error(err);
+    } finally {
+      if (loading) loading.style.display = "none";
+    }
+  };
+
   window.snCopyPayload = function() {
     var box = document.getElementById('sn-payload-box');
     if (!box) return;
