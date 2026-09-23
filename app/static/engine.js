@@ -1,4 +1,7 @@
 (function() {
+  // =========================================================================
+  // 1. CATALOG & ACTIVE ASTEROID STATE
+  // =========================================================================
   window.SN_CATALOG = [
     { id: 1, name: "Ceres" },
     { id: 2, name: "Pallas" },
@@ -93,7 +96,7 @@
   };
 
   // =========================================================================
-  // GLOBAL ENGINE MODE CONTROLLER
+  // 2. ENGINE MODE & LOCATION CONTROLLER
   // =========================================================================
   window.snCurrentMode = "NATAL_DUAL";
 
@@ -140,10 +143,10 @@
     var twinBar = document.getElementById("sn-twin-quick-bar");
     var bTitle = document.getElementById("sn-chart-b-title");
     var bLoc = document.getElementById("sn-b-location-wrap");
-    var h2Group = document.getElementById("sn-houses-2") ? document.getElementById("sn-houses-2").closest("div") : null;
+    var h2El = document.getElementById("sn-houses-2");
+    var h2Group = h2El ? h2El.closest("div") : null;
 
-    var buttons = document.querySelectorAll(".sn-mode-btn");
-    buttons.forEach(function(btn) {
+    document.querySelectorAll(".sn-mode-btn").forEach(function(btn) {
       btn.style.background = "transparent";
       btn.style.color = "#94a3b8";
     });
@@ -325,6 +328,9 @@
     if (btn) btn.textContent = "Find City";
   };
 
+  // =========================================================================
+  // 3. ASTROLOGICAL UTILITY FUNCTIONS
+  // =========================================================================
   window.snAdjustToZodiac = function(deg, zType, ayVal) {
     var v = Number(deg);
     if (zType === 'SIDEREAL') {
@@ -391,53 +397,7 @@
     return ' <span style="color:#94a3b8; font-size:0.8rem;">(House ' + h1Num + ' [' + h1Name + '])</span>';
   }
 
-  function snFindAspects(bodies, mode) {
-    var asps = [
-      { name: "Conjunction", angle: 0, orb: 8 },
-      { name: "Sextile", angle: 60, orb: 5 },
-      { name: "Square", angle: 90, orb: 7 },
-      { name: "Trine", angle: 120, orb: 7 },
-      { name: "Opposition", angle: 180, orb: 8 }
-    ];
-    if (mode === "DEGREE_TIGHT") asps.forEach(function(a) { a.orb = 3; });
-
-    var res = [];
-    var k = Object.keys(bodies);
-    for (var i = 0; i < k.length; i++) {
-      for (var j = i + 1; j < k.length; j++) {
-        var n1 = k[i], n2 = k[j];
-        var l1 = bodies[n1], l2 = bodies[n2];
-        var diff = Math.abs(l1 - l2) % 360;
-        if (diff > 180) diff = 360 - diff;
-
-        if (mode === "SIGN_BASED") {
-          var s1 = Math.floor(l1 / 30);
-          var s2 = Math.floor(l2 / 30);
-          var sDiff = Math.abs(s1 - s2);
-          if (sDiff > 6) sDiff = 12 - sDiff;
-          var aName = null;
-          if (sDiff === 0) aName = "Conjunction";
-          else if (sDiff === 2) aName = "Sextile";
-          else if (sDiff === 3) aName = "Square";
-          else if (sDiff === 4) aName = "Trine";
-          else if (sDiff === 6) aName = "Opposition";
-          if (aName) res.push(n1 + " " + aName + " " + n2 + " (Whole Sign)");
-        } else {
-          for (var a = 0; a < asps.length; a++) {
-            var asp = asps[a];
-            var orbActual = Math.abs(diff - asp.angle);
-            if (orbActual <= asp.orb) {
-              res.push(n1 + " " + asp.name + " " + n2 + " (" + orbActual.toFixed(1) + "°)");
-              break;
-            }
-          }
-        }
-      }
-    }
-    return res;
-  }
-
-// --- SVG CHART WHEEL GENERATOR (CORRECT ORIENTATION: ASC LEFT, MC TOP) ---
+  // --- SVG WHEEL (COUNTER-CLOCKWISE: ASC FAR-LEFT, MC TOP) ---
   function snRenderWheelSVG(title, houses, planets, angles, isUnknown) {
     if (!houses || houses.length !== 12) return "";
 
@@ -448,12 +408,9 @@
     var rHouses = 100;
     var rInner = 40;
 
-    // Ascendant defines the left horizon (180 degrees)
     var ascDeg = (angles && angles.ASC !== undefined) ? angles.ASC : houses[0];
 
-    // Math: Counter-clockwise flow with SVG's inverted Y-axis
     function degToXY(deg, radius) {
-      // Counter-clockwise delta from ASC (ASC = 180 deg / far left)
       var rad = (180 - (deg - ascDeg)) * (Math.PI / 180);
       return {
         x: (center + radius * Math.cos(rad)).toFixed(2),
@@ -471,13 +428,11 @@
 
     var svg = '<svg viewBox="0 0 ' + size + ' ' + size + '" style="width: 100%; height: auto; background: #0c0d14; border-radius: 50%; border: 1px solid #2d3348; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">';
     
-    // Concentric Guide Rings
     svg += '<circle cx="' + center + '" cy="' + center + '" r="' + rOuter + '" fill="none" stroke="#2d3348" stroke-width="1.5" />';
     svg += '<circle cx="' + center + '" cy="' + center + '" r="' + rZodiac + '" fill="#12131a" stroke="#2d3348" stroke-width="1" />';
     svg += '<circle cx="' + center + '" cy="' + center + '" r="' + rHouses + '" fill="#181a24" stroke="#2d3348" stroke-width="1" />';
     svg += '<circle cx="' + center + '" cy="' + center + '" r="' + rInner + '" fill="#0c0d14" stroke="#2d3348" stroke-width="1" />';
 
-    // 12 Zodiac Sign Segments
     for (var i = 0; i < 12; i++) {
       var sDeg = i * 30;
       var p1 = degToXY(sDeg, rOuter);
@@ -488,7 +443,6 @@
       svg += '<text x="' + midPos.x + '" y="' + (parseFloat(midPos.y) + 5) + '" text-anchor="middle" font-size="14" fill="' + zColors[i] + '">' + zGlyphs[i] + '</text>';
     }
 
-    // 12 House Cusps & Division Lines
     for (var h = 0; h < 12; h++) {
       var cusp = houses[h];
       var hp1 = degToXY(cusp, rZodiac);
@@ -497,7 +451,6 @@
       var strokeW = (h === 0 || h === 6 || h === 3 || h === 9) ? "1.8" : "0.7";
       svg += '<line x1="' + hp1.x + '" y1="' + hp1.y + '" x2="' + hp2.x + '" y2="' + hp2.y + '" stroke="' + strokeColor + '" stroke-width="' + strokeW + '" />';
 
-      // House Number Labels
       var nextCusp = houses[(h + 1) % 12];
       var diff = (nextCusp - cusp + 360) % 360;
       var hMidDeg = (cusp + (diff / 2)) % 360;
@@ -505,7 +458,6 @@
       svg += '<text x="' + numPos.x + '" y="' + (parseFloat(numPos.y) + 4) + '" text-anchor="middle" font-size="9" font-family="monospace" fill="#64748b">' + (h + 1) + '</text>';
     }
 
-    // Plot Planetary Glyphs
     if (planets) {
       var pKeys = Object.keys(planets);
       pKeys.forEach(function(pName) {
@@ -517,7 +469,6 @@
       });
     }
 
-    // Horizontal Ascendant Marker Line (Far Left horizon)
     var ascP1 = degToXY(ascDeg, rOuter + 8);
     var ascP2 = degToXY(ascDeg, rZodiac);
     svg += '<line x1="' + ascP1.x + '" y1="' + ascP1.y + '" x2="' + ascP2.x + '" y2="' + ascP2.y + '" stroke="#2dd4bf" stroke-width="2.5" />';
@@ -525,9 +476,11 @@
 
     svg += '</svg>';
     return '<div style="font-size: 0.8rem; font-weight:600; color:#2dd4bf; margin-bottom:8px;">' + title + '</div>' + svg;
-  };
+  }
 
-  // --- MAIN PLACEMENT ENGINE ---
+  // =========================================================================
+  // 4. MAIN PLACEMENT ENGINE
+  // =========================================================================
   window.snCalculatePlacements = async function() {
     var dateEl = document.getElementById('sn-birthdate-date');
     var timeEl = document.getElementById('sn-birthdate-time');
@@ -613,9 +566,10 @@
     var d2Data = null;
 
     var isTwinMode = (window.snCurrentMode === "TWIN_COMPARE");
+    var isDualMode = (window.snCurrentMode === "TWIN_COMPARE" || window.snCurrentMode === "SYNASTRY" || window.snCurrentMode === "TRANSITS");
 
     try {
-      if (isTwinMode || window.snCurrentMode === "SYNASTRY" || window.snCurrentMode === "TRANSITS") {
+      if (isDualMode) {
         var bDateEl = document.getElementById("sn-b-date");
         var bTimeEl = document.getElementById("sn-b-time");
         var bLatEl = document.getElementById("sn-b-lat");
@@ -659,7 +613,7 @@
         d1 = await resArray[0].json();
         d2Data = await resArray[1].json();
         d2Cusps = d2Data.houses;
-        h2Label = isTwinMode ? "Twin B (" + bTimeVal + ")" : "Chart B";
+        h2Label = isTwinMode ? ("Twin B (" + bTimeVal + ")") : "Chart B";
 
       } else {
         var res1 = await fetch('https://supernova-calc-engine.onrender.com/api/v1/natal', {
@@ -698,7 +652,7 @@
       }
 
       // -------------------------------------------------------------
-      // PLAIN-TEXT BUILDER (FOR COPY/PASTE PAYLOAD BOX)
+      // PLAIN-TEXT BUILDER (Header & Metadata)
       // -------------------------------------------------------------
       var raw = "";
       raw += "Zodiac System:    " + zod + (zod === 'SIDEREAL' ? " (Ayanamsa " + ayan + ")" : "") + "\n";
@@ -719,13 +673,11 @@
       if (h2Label) raw += snPad("H (" + h2Label.substr(0,4) + ")", 12);
       raw += "\n----------------------------------------------------------------------\n";
 
-      // Dynamic Chart Labels
-      var isDualMode = (window.snCurrentMode === "TWIN_COMPARE" || window.snCurrentMode === "SYNASTRY" || window.snCurrentMode === "TRANSITS");
-      var labelA = "Person A";
+      var labelA = isTwinMode ? "Twin A" : "Person A";
       var labelB = (window.snCurrentMode === "TRANSITS") ? "Transits" : 
-                   (window.snCurrentMode === "SYNASTRY") ? "Partner B" : "Person B";
+                   (window.snCurrentMode === "TWIN_COMPARE") ? "Twin B" : "Person B";
 
-      // 0. SECT & OVERVIEW BADGES
+      // 0. Sect & Overview Badges
       var overviewEl = document.getElementById("sn-display-overview");
       if (overviewEl) {
         var sect1 = d1.sect || "DAY";
@@ -753,7 +705,7 @@
         }
       }
 
-      // 0b. MOON PHASE
+      // 0b. Moon Phase
       var moonEl = document.getElementById("sn-display-moon");
       if (moonEl && d1.moon_phase) {
         var renderMoonCard = function(mPhase, label) {
@@ -776,7 +728,27 @@
         }
       }
 
-      // --- 1. ANGLES & NODES ---
+      // --- Chart Wheels ---
+      var wheelsWrap = document.getElementById("sn-wheels-wrap");
+      var wPrimEl = document.getElementById("sn-wheel-primary");
+      var wSecEl = document.getElementById("sn-wheel-secondary");
+
+      if (wheelsWrap && wPrimEl && (!isUnknown || knownRising !== "NONE")) {
+        wheelsWrap.style.display = "block";
+        wPrimEl.innerHTML = snRenderWheelSVG(h1Label, d1.houses, d1.planets, d1.angles, isUnknown);
+
+        if (d2Cusps && h2Label) {
+          wSecEl.style.display = "block";
+          wSecEl.innerHTML = snRenderWheelSVG(h2Label, d2Cusps, (d2Data ? d2Data.planets : d1.planets), (d2Data ? d2Data.angles : d1.angles), isUnknown);
+        } else {
+          wSecEl.style.display = "none";
+          wSecEl.innerHTML = "";
+        }
+      } else if (wheelsWrap) {
+        wheelsWrap.style.display = "none";
+      }
+
+      // --- 1. Angles & Nodes ---
       var angContainer = document.getElementById('sn-display-angles');
       if (angContainer && d1.angles) {
         var angContent = "";
@@ -813,7 +785,7 @@
         angContainer.innerHTML = angContent;
       }
       
-      // --- 2. PLANETARY BODIES ---
+      // --- 2. Planetary Bodies ---
       var plaContainer = document.getElementById('sn-display-planets');
       if (plaContainer && d1.planets) {
         var plaContent = "";
@@ -861,7 +833,7 @@
         plaContainer.innerHTML = plaContent;
       }
 
-      // --- 3. ASTEROIDS ---
+      // --- 3. Asteroids ---
       var astBox = document.getElementById('sn-display-asteroids');
       var astData1 = d1.asteroids || {};
       var astData2 = (isDualMode && d2Data) ? (d2Data.asteroids || {}) : null;
@@ -919,7 +891,7 @@
         }
       }
 
-      // --- 4. FIXED STARS & COSMIC POINTS ---
+      // --- 4. Fixed Stars & Cosmic Points ---
       var starsBox = document.getElementById("sn-display-stars");
       var starsHeading = document.getElementById("sn-stars-heading");
       var listA = (d1 && d1.fixed_stars) ? d1.fixed_stars : [];
@@ -948,9 +920,15 @@
             starsBox.innerHTML = formatStarList(listA);
           }
         }
+      } else {
+        if (starsHeading) starsHeading.style.display = "none";
+        if (starsBox) {
+          starsBox.innerHTML = "";
+          starsBox.style.display = "none";
+        }
       }
 
-      // --- 5. HOUSE CUSPS ---
+      // --- 5. House Cusps ---
       var cuspContainer = document.getElementById('sn-display-houses');
       if (cuspContainer && d1.houses) {
         var cuspContent = "";
@@ -983,7 +961,7 @@
         cuspContainer.innerHTML = cuspContent;
       }
 
-      // --- 5b. INTERCEPTED SIGNS & DUPLICATED AXES ---
+      // --- 5b. Intercepted Signs & Duplicated Axes ---
       var wrapEl = document.getElementById("sn-intercepts-wrap");
       var dispEl = document.getElementById("sn-display-intercepts");
 
@@ -1022,38 +1000,28 @@
         }
       }
       
-      // --- 6. ADVANCED ASPECTS (SIDE-BY-SIDE, CATEGORIZED, & DYNAMIC ORBS) ---
+      // =========================================================================
+      // --- 6. ADVANCED ASPECTS & SYNASTRY ENGINE ---
+      // =========================================================================
       var aspElDisplay = document.getElementById('sn-display-aspects');
       var orbMultEl = document.getElementById('sn-orb-multiplier');
-      var orbMultiplier = orbMultEl ? parseFloat(orbMultEl.value) : 1.25; // default 1.25x if not present
+      var orbMultiplier = orbMultEl ? parseFloat(orbMultEl.value) : 1.25;
 
-      // Helper: Extract aspect bodies dictionary
-      var getAspectBodies = function(dataObj) {
-        var bodies = {};
-        if (dataObj && dataObj.planets) {
-          Object.keys(dataObj.planets).forEach(function(k) {
-            if (k === "TrueNode") bodies["North Node"] = dataObj.planets[k].lon;
-            else if (k === "BlackMoonLilith") bodies["Lilith"] = dataObj.planets[k].lon;
-            else if (k === "PartOfFortune") bodies["Fortune"] = dataObj.planets[k].lon;
-            else bodies[k] = dataObj.planets[k].lon;
+      var getAspectBodies = function(data) {
+        var b = {};
+        if (!data) return b;
+        if (data.planets) {
+          Object.keys(data.planets).forEach(function(k) {
+            if (k !== "TrueNode") b[k] = data.planets[k].lon;
           });
         }
-        if (dataObj && dataObj.angles && dataObj.angles.ASC !== undefined) {
-          bodies["Ascendant"] = dataObj.angles.ASC;
-          bodies["Midheaven"] = dataObj.angles.MC;
+        if (data.angles) {
+          if (data.angles.ASC !== undefined) b["Ascendant"] = data.angles.ASC;
+          if (data.angles.MC !== undefined) b["Midheaven"] = data.angles.MC;
         }
-        if (dataObj && dataObj.asteroids) {
-          Object.keys(dataObj.asteroids).forEach(function(k) {
-            var a = dataObj.asteroids[k];
-            var mAst = (window.snActive || []).find(function(item) { return item.id === parseInt(a.id || k); });
-            var name = mAst ? mAst.name : ("Asteroid " + (a.id || k));
-            bodies[name] = a.lon;
-          });
-        }
-        return bodies;
+        return b;
       };
 
-      // Helper: Structure aspects into detailed objects with dynamic orbs
       var computeDetailedAspects = function(bodies, mode, mult) {
         var asps = [
           { name: "Conjunction", glyph: "☌", angle: 0, orb: 8 * mult },
@@ -1111,7 +1079,69 @@
         return results;
       };
 
-      // Helper: Categorize aspects under each primary planet
+      var computeSynastryAspects = function(bodiesA, bodiesB, mode, mult) {
+        var asps = [
+          { name: "Conjunction", glyph: "☌", angle: 0, orb: 7 * mult },
+          { name: "Sextile", glyph: "⚹", angle: 60, orb: 4 * mult },
+          { name: "Square", glyph: "□", angle: 90, orb: 6 * mult },
+          { name: "Trine", glyph: "△", angle: 120, orb: 6 * mult },
+          { name: "Opposition", glyph: "☍", angle: 180, orb: 7 * mult }
+        ];
+
+        if (mode === "DEGREE_TIGHT") {
+          asps.forEach(function(a) { a.orb = 3 * mult; });
+        }
+
+        var results = [];
+        var keysA = Object.keys(bodiesA);
+        var keysB = Object.keys(bodiesB);
+
+        for (var i = 0; i < keysA.length; i++) {
+          for (var j = 0; j < keysB.length; j++) {
+            var pA = keysA[i], pB = keysB[j];
+            var lonA = bodiesA[pA], lonB = bodiesB[pB];
+            var diff = Math.abs(lonA - lonB) % 360;
+            if (diff > 180) diff = 360 - diff;
+
+            if (mode === "SIGN_BASED") {
+              var sA = Math.floor(lonA / 30);
+              var sB = Math.floor(lonB / 30);
+              var sDiff = Math.abs(sA - sB);
+              if (sDiff > 6) sDiff = 12 - sDiff;
+              var aName = null;
+              if (sDiff === 0) aName = "Conjunction";
+              else if (sDiff === 2) aName = "Sextile";
+              else if (sDiff === 3) aName = "Square";
+              else if (sDiff === 4) aName = "Trine";
+              else if (sDiff === 6) aName = "Opposition";
+              if (aName) {
+                results.push({
+                  pA: pA, pB: pB, aspect: aName, orb: 0,
+                  str: "Person A " + pA + " " + aName + " Person B " + pB + " (Whole Sign)"
+                });
+              }
+            } else {
+              for (var a = 0; a < asps.length; a++) {
+                var asp = asps[a];
+                var orbActual = Math.abs(diff - asp.angle);
+                if (orbActual <= asp.orb) {
+                  results.push({
+                    pA: pA,
+                    pB: pB,
+                    aspect: asp.name,
+                    glyph: asp.glyph,
+                    orb: orbActual,
+                    str: "A " + pA + " " + asp.glyph + " (" + asp.name + ") B " + pB + " (" + orbActual.toFixed(1) + "°)"
+                  });
+                  break;
+                }
+              }
+            }
+          }
+        }
+        return results;
+      };
+
       var renderCategorizedAspects = function(aspectList) {
         if (!aspectList || aspectList.length === 0) return '<div style="color:#94a3b8; font-style:italic;">No major aspects</div>';
         
@@ -1149,13 +1179,28 @@
         return html;
       };
 
-      // Compute A and B with dynamic orb multiplier
-      var aspListA = computeDetailedAspects(getAspectBodies(d1), aspStyle, orbMultiplier);
-      var aspListB = (isTwinMode && d2Data) ? computeDetailedAspects(getAspectBodies(d2Data), aspStyle, orbMultiplier) : null;
+      var bodiesA = getAspectBodies(d1);
+      var bodiesB = (isDualMode && d2Data) ? getAspectBodies(d2Data) : null;
 
-      // Populate into DOM
+      var aspListA = computeDetailedAspects(bodiesA, aspStyle, orbMultiplier);
+      var aspListB = bodiesB ? computeDetailedAspects(bodiesB, aspStyle, orbMultiplier) : null;
+      var synList = (window.snCurrentMode === "SYNASTRY" && bodiesB) ? computeSynastryAspects(bodiesA, bodiesB, aspStyle, orbMultiplier) : [];
+
       if (aspElDisplay) {
-        if (isDualMode && aspListB) {
+        if (window.snCurrentMode === "SYNASTRY" && bodiesB) {
+          var synHtml = '<div style="color:#2dd4bf; font-weight:700; margin-bottom:8px; border-bottom:1px solid #2d3348; padding-bottom:4px;">Cross-Chart Synastry Aspects (' + synList.length + ')</div>';
+          if (synList.length === 0) {
+            synHtml += '<div style="color:#94a3b8; font-style:italic;">No cross-aspects within active orbs.</div>';
+          } else {
+            synHtml += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;">';
+            synList.forEach(function(item) {
+              synHtml += '<div style="background:#11131c; border:1px solid #232736; border-radius:4px; padding:4px 8px; font-size:0.82rem;">• ' + item.str + '</div>';
+            });
+            synHtml += '</div>';
+          }
+          aspElDisplay.innerHTML = synHtml;
+
+        } else if (isDualMode && aspListB) {
           aspElDisplay.innerHTML = 
             '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">' +
               '<div>' +
@@ -1173,7 +1218,7 @@
       }
 
       // =========================================================================
-      // COMPLETE PLAIN-TEXT PAYLOAD BUILDER (FOR COPY/PASTE BOX)
+      // 5. PLAIN-TEXT PAYLOAD BUILDER (OUTPUT BOX)
       // =========================================================================
       raw += "======================================================================\n";
       raw += "PLANETARY PLACEMENTS\n";
@@ -1183,10 +1228,10 @@
           var p = d1.planets[pName];
           var retro = p.retro ? " (R)" : "";
           var pLine = snPad(pName, 16) + snPad(window.snFormatZodiac(p.lon) + retro, 18) + snPad("House " + p.house, 12);
-          if (isTwinMode && d2Data && d2Data.planets && d2Data.planets[pName]) {
+          if (isDualMode && d2Data && d2Data.planets && d2Data.planets[pName]) {
             var pB = d2Data.planets[pName];
             var retroB = pB.retro ? " (R)" : "";
-            pLine += " | Twin B: " + snPad(window.snFormatZodiac(pB.lon) + retroB, 18) + "House " + pB.house;
+            pLine += " | " + labelB + ": " + snPad(window.snFormatZodiac(pB.lon) + retroB, 18) + "House " + pB.house;
           }
           raw += pLine + "\n";
         });
@@ -1198,8 +1243,8 @@
       if (d1.angles) {
         ["ASC", "MC", "DS", "IC"].forEach(function(ang) {
           var line = snPad(ang, 16) + snPad(window.snFormatZodiac(d1.angles[ang]), 18);
-          if (isTwinMode && d2Data && d2Data.angles) {
-            line += " | Twin B: " + window.snFormatZodiac(d2Data.angles[ang]);
+          if (isDualMode && d2Data && d2Data.angles) {
+            line += " | " + labelB + ": " + window.snFormatZodiac(d2Data.angles[ang]);
           }
           raw += line + "\n";
         });
@@ -1207,8 +1252,8 @@
       if (d1.houses) {
         for (var h = 0; h < 12; h++) {
           var hLine = snPad("House " + (h + 1), 16) + snPad(window.snFormatZodiac(d1.houses[h]), 18);
-          if (isTwinMode && d2Data && d2Data.houses) {
-            hLine += " | Twin B: " + window.snFormatZodiac(d2Data.houses[h]);
+          if (isDualMode && d2Data && d2Data.houses) {
+            hLine += " | " + labelB + ": " + window.snFormatZodiac(d2Data.houses[h]);
           }
           raw += hLine + "\n";
         }
@@ -1217,11 +1262,16 @@
       raw += "\n======================================================================\n";
       raw += "MAJOR ASPECTS\n";
       raw += "======================================================================\n";
-      raw += "--- Twin A Aspects ---\n";
-      aspListA.forEach(function(a) { raw += "• " + a.str + "\n"; });
-      if (isTwinMode && aspListB) {
-        raw += "\n--- Twin B Aspects ---\n";
-        aspListB.forEach(function(b) { raw += "• " + b.str + "\n"; });
+      if (window.snCurrentMode === "SYNASTRY" && bodiesB) {
+        raw += "--- Cross-Chart Synastry Aspects ---\n";
+        synList.forEach(function(s) { raw += "• " + s.str + "\n"; });
+      } else {
+        raw += "--- " + labelA + " Aspects ---\n";
+        aspListA.forEach(function(a) { raw += "• " + a.str + "\n"; });
+        if (isDualMode && aspListB) {
+          raw += "\n--- " + labelB + " Aspects ---\n";
+          aspListB.forEach(function(b) { raw += "• " + b.str + "\n"; });
+        }
       }
 
       var pBox = document.getElementById('sn-payload-box');
@@ -1230,9 +1280,6 @@
       if (disp) disp.style.display = "block";
       if (out) out.style.display = "block";
 
-    // =======================================================================
-    // MAKE SURE THIS CATCH & FINALLY BLOCK CLOSES snCalculatePlacements:
-    // =======================================================================
     } catch (err) {
       alert("Calculation error: " + err.message);
       console.error(err);
@@ -1241,6 +1288,9 @@
     }
   };
 
+  // =========================================================================
+  // 6. CLIPBOARD & LIFECYCLE INITIALIZER
+  // =========================================================================
   window.snCopyPayload = function() {
     var box = document.getElementById('sn-payload-box');
     if (!box) return;
